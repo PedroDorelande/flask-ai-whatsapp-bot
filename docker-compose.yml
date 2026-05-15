@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   waha:
     image: devlikeapro/waha:latest
@@ -7,17 +9,19 @@ services:
       - "3000:3000"
     environment:
       # ===== WAHA Credentials =====
-      WAHA_API_KEY: "0ed09267d38c4880a4da73f2a8a81cac"
-      WAHA_DASHBOARD_USERNAME: "admin"
-      WAHA_DASHBOARD_PASSWORD: "46d74480eab54a22ba97857d8d79c4f0"
-      WHATSAPP_SWAGGER_USERNAME: "admin"
-      WHATSAPP_SWAGGER_PASSWORD: "46d74480eab54a22ba97857d8d79c4f0"
+      WAHA_API_KEY: "${WAHA_API_KEY}"
+      WAHA_DASHBOARD_USERNAME: "${WAHA_DASHBOARD_USERNAME:-admin}"
+      WAHA_DASHBOARD_PASSWORD: "${WAHA_DASHBOARD_PASSWORD}"
+      WHATSAPP_SWAGGER_USERNAME: "${WAHA_DASHBOARD_USERNAME:-admin}"
+      WHATSAPP_SWAGGER_PASSWORD: "${WAHA_DASHBOARD_PASSWORD}"
       # ===== Webhook =====
       WHATSAPP_HOOK_URL: "http://host.docker.internal:5000/webhook"
       WHATSAPP_HOOK_EVENTS: "message,message.any"
       # ===== Config =====
       WHATSAPP_DEFAULT_ENGINE: "WEBJS"
       WHATSAPP_RESTART_ALL_SESSIONS: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - waha-data:/app/.sessions
 
