@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — TypeBot{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📊 Dashboard</h1>
+    <p class="subtitle">Visão geral do seu bot educacional</p>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card red">
+        <div class="stat-icon">👥</div>
+        <div class="stat-info">
+            <span class="stat-number">{{ fila_esperando }}</span>
+            <span class="stat-label">Na Fila</span>
+        </div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-icon">📞</div>
+        <div class="stat-info">
+            <span class="stat-number">{{ fila_atendendo }}</span>
+            <span class="stat-label">Atendendo</span>
+        </div>
+    </div>
+    <div class="stat-card purple">
+        <div class="stat-icon">✅</div>
+        <div class="stat-info">
+            <span class="stat-number">{{ total_atendidos }}</span>
+            <span class="stat-label">Atendidos</span>
+        </div>
+    </div>
+    <div class="stat-card blue">
+        <div class="stat-icon">📋</div>
+        <div class="stat-info">
+            <span class="stat-number">{{ total_menus }}</span>
+            <span class="stat-label">Menus</span>
+        </div>
+    </div>
+    <div class="stat-card indigo">
+        <div class="stat-icon">🧠</div>
+        <div class="stat-info">
+            <span class="stat-number">{{ faqs_aprovadas }}</span>
+            <span class="stat-label">FAQs Ativas</span>
+        </div>
+    </div>
+    <div class="stat-card orange">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-info">
+            <span class="stat-number">{{ faqs_pendentes }}</span>
+            <span class="stat-label">Pendentes</span>
+        </div>
+    </div>
+</div>
+
+<!-- WhatsApp + Ações -->
+<div class="cards-row">
+    <div class="card">
+        <h3>📱 WhatsApp</h3>
+        {% set status = waha_status.get('status', 'STOPPED') if waha_status else 'UNKNOWN' %}
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <span class="status-dot {% if status == 'WORKING' %}online{% elif status == 'SCAN_QR_CODE' %}connecting{% else %}offline{% endif %}"></span>
+            <span style="font-size:14px;font-weight:500;">
+                {% if status == 'WORKING' %}Conectado
+                {% elif status == 'SCAN_QR_CODE' %}Aguardando QR Code
+                {% elif status == 'STOPPED' %}Parado
+                {% else %}{{ status }}{% endif %}
+            </span>
+        </div>
+        <div class="quick-actions">
+            <a href="{{ url_for('whatsapp') }}" class="btn btn-ghost">📱 Gerenciar</a>
+            {% if status != 'WORKING' %}
+            <a href="{{ url_for('whatsapp') }}" class="btn btn-primary">Conectar</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>🚀 Ações Rápidas</h3>
+        <div class="quick-actions" style="flex-direction:column;gap:8px;">
+            <a href="{{ url_for('menus') }}" class="btn btn-primary" style="justify-content:center;">📋 Editar Menus</a>
+            <a href="{{ url_for('upload_pdf') }}" class="btn btn-secondary" style="justify-content:center;">📄 Upload PDF</a>
+            {% if faqs_pendentes > 0 %}
+            <a href="{{ url_for('knowledge', status='Pendente') }}" class="btn btn-warning" style="justify-content:center;">⏳ Revisar {{ faqs_pendentes }} FAQ(s)</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Fila ao Vivo -->
+{% if esperando or chamados %}
+<div class="card">
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <h3>👥 Fila ao Vivo</h3>
+        <div style="display:flex;gap:8px;">
+            {% if esperando %}
+            <form method="POST" action="{{ url_for('fila_chamar') }}" style="margin:0;">
+                <button class="btn btn-primary btn-sm">📢 Chamar Próximo</button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('fila') }}" class="btn btn-sm btn-ghost">Abrir Fila →</a>
+        </div>
+    </div>
+
+    {% if chamados %}
+    <div style="margin-bottom:12px;">
+        <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Em Atendimento</span>
+        <div class="preview-list" style="margin-top:6px;">
+            {% for entry in chamados %}
+            <div class="preview-item" style="border-left:3px solid var(--success);">
+                <span class="pos" style="background:var(--success);">📞</span>
+                <div style="flex:1;">
+                    <strong>{{ entry.nome or 'Aluno' }}</strong>
+                    <span style="font-size:12px;color:var(--text-muted);margin-left:6px;">📞 {{ entry.numero }}</span>
+                </div>
+                <form method="POST" action="{{ url_for('fila_finalizar', entry_id=entry.id) }}" style="margin:0;">
+                    <button class="btn btn-sm btn-success">✅ Finalizar</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if esperando %}
+    <span style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Aguardando ({{ esperando|length }})</span>
+    <div class="preview-list" style="margin-top:6px;">
+        {% for entry in esperando %}
+        <div class="preview-item">
+            <span class="pos">{{ loop.index }}</span>
+            <div style="flex:1;">
+                <strong>{{ entry.nome or 'Aluno' }}</strong>
+                <span style="font-size:12px;color:var(--text-muted);margin-left:6px;">📞 {{ entry.numero }}</span>
+                {% set d = entry.dados_dict %}
+                {% if d.get('assunto') %}
+                <span style="font-size:11px;color:var(--text-secondary);display:block;">{{ d.assunto }}</span>
+                {% endif %}
+            </div>
+            <span style="font-size:11px;color:var(--text-muted);">{{ entry.criado_em.strftime('%H:%M') }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Últimos Atendimentos -->
+{% if ultimos_atendidos %}
+<div class="card">
+    <div class="card-header">
+        <h3>📜 Últimos Atendimentos</h3>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr><th>Nome</th><th>Número</th><th>Chamado</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+            {% for entry in ultimos_atendidos %}
+            <tr>
+                <td>{{ entry.nome or 'Aluno' }}</td>
+                <td><code>{{ entry.numero }}</code></td>
+                <td>{{ entry.chamado_em.strftime('%d/%m %H:%M') if entry.chamado_em else '-' }}</td>
+                <td><span class="status-badge active">Atendido</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if sessoes_mutadas > 0 %}
+<div class="card alert-card">
+    <h3>⚠️ {{ sessoes_mutadas }} bot(s) mutado(s)</h3>
+    <p>Coordenador atendendo manualmente. <a href="{{ url_for('sessions') }}">Gerenciar sessões</a>.</p>
+</div>
+{% endif %}
+{% endblock %}

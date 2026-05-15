@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Arquivos — TypeBot{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📁 Arquivos</h1>
+    <p class="subtitle">Gerencie os arquivos do sistema — envie, consulte e gere perguntas</p>
+</div>
+
+<!-- Upload novo arquivo -->
+<div class="card">
+    <h3>➕ Enviar Arquivo</h3>
+    <form method="POST" action="{{ url_for('arquivo_upload') }}" enctype="multipart/form-data" class="add-form">
+        <div class="form-group">
+            <label>Selecione o arquivo (imagem, PDF, documento)</label>
+            <input type="file" name="arquivo" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" required>
+        </div>
+        <button type="submit" class="btn btn-primary">📤 Enviar</button>
+    </form>
+</div>
+
+<!-- Lista de arquivos -->
+<div class="card">
+    <div class="card-header">
+        <h3>📂 Arquivos Salvos ({{ arquivos|length }})</h3>
+    </div>
+    <div class="menu-list">
+        {% for arq in arquivos %}
+        <div class="menu-item">
+            <div class="menu-item-left">
+                <span class="menu-pos">
+                    {% if arq.tipo == 'image' %}🖼️{% elif arq.tipo == 'pdf' %}📄{% else %}📎{% endif %}
+                </span>
+                <div class="menu-info">
+                    <strong>{{ arq.nome }}</strong>
+                    <span class="tag tag-leaf">{{ arq.tipo|upper }}</span>
+                    <span style="font-size:0.8rem; color:var(--text-muted);">
+                        {{ arq.tamanho }} — Usado em {{ arq.usado_em }} item(s)
+                    </span>
+                    <div style="margin-top:4px;">
+                        <code style="font-size:11px; word-break:break-all;">{{ arq.link }}</code>
+                    </div>
+                </div>
+            </div>
+            <div class="menu-item-actions">
+                <a href="{{ arq.link }}" target="_blank" class="btn btn-sm btn-secondary">👁️ Ver</a>
+                <button class="btn btn-sm btn-primary" onclick="copyLink('{{ arq.link }}')">📋 Link</button>
+                {% if arq.tipo == 'pdf' %}
+                <button class="btn btn-sm btn-success" onclick="toggleGerarForm('{{ arq.filename }}')">🧠 Gerar Perguntas</button>
+                {% endif %}
+                {% if arq.usado_em == 0 %}
+                <form method="POST" action="{{ url_for('arquivo_delete', filename=arq.filename) }}" style="display:inline">
+                    <button class="btn btn-sm btn-danger">🗑️</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        <!-- Form para gerar perguntas (escondido) -->
+        {% if arq.tipo == 'pdf' %}
+        <div class="edit-form" id="gerar-{{ arq.filename }}" style="display:none;">
+            <form method="POST" action="{{ url_for('arquivo_gerar_perguntas', filename=arq.filename) }}">
+                <div class="form-group">
+                    <label>📝 Sobre o que gerar as perguntas? (opcional)</label>
+                    <textarea name="instrucao" rows="2"
+                        placeholder="Ex: Foque em regras de avaliação e prazos. Ou: Quero perguntas sobre requisitos de matrícula."></textarea>
+                    <span style="font-size:11px;color:var(--text-muted);">Se deixar vazio, a IA extrairá todas as informações possíveis do PDF.</span>
+                </div>
+                <button type="submit" class="btn btn-success"
+                    onclick="this.textContent='⏳ Processando...'; this.disabled=true; this.form.submit();">
+                    🧠 Gerar Perguntas
+                </button>
+            </form>
+        </div>
+        {% endif %}
+        {% endfor %}
+
+        {% if not arquivos %}
+        <div class="empty-state">
+            <p>Nenhum arquivo enviado ainda.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function copyLink(link) {
+    navigator.clipboard.writeText(link).then(function() {
+        alert('Link copiado!');
+    });
+}
+
+function toggleGerarForm(filename) {
+    const el = document.getElementById('gerar-' + filename);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

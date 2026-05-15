@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block title %}Menus — TypeBot{% endblock %}
+
+{% block content %}
+<style>
+    .menu-item[draggable="true"] { cursor: grab; transition: opacity 0.15s, box-shadow 0.15s; }
+    .menu-item[draggable="true"]:active { cursor: grabbing; }
+    .menu-item.dragging { opacity: 0.3; }
+    .menu-item.drag-over { box-shadow: 0 -3px 0 var(--primary); }
+    .drag-handle { cursor: grab; color: var(--text-muted); font-size: 18px; user-select: none; margin-right: 4px; }
+    .drag-handle:active { cursor: grabbing; }
+    .order-saved {
+        display: inline-block; padding: 4px 12px; border-radius: 6px;
+        background: var(--success); color: white; font-size: 12px; font-weight: 600;
+        animation: fadeout 2s forwards; animation-delay: 1s;
+    }
+    @keyframes fadeout { to { opacity: 0; } }
+</style>
+
+<div class="page-header">
+    <h1>📋 Menus do Bot</h1>
+    {% if parent %}
+    <div class="breadcrumb">
+        <a href="{{ url_for('menus') }}">Menu Principal</a>
+        {% if parent.pai %}
+        <span>›</span>
+        <a href="{{ url_for('menus_sub', parent_id=parent.pai.id) }}">{{ parent.pai.titulo }}</a>
+        {% endif %}
+        <span>›</span>
+        <strong>{{ parent.titulo }}</strong>
+    </div>
+    {% else %}
+    <p class="subtitle">Gerencie as opcoes que o bot mostra aos alunos — arraste ☰ para reordenar</p>
+    {% endif %}
+</div>
+
+<!-- Lista de menus -->
+<div class="card">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <h3>{% if parent %}Sub-menus de "{{ parent.titulo }}"{% else %}Menu Principal{% endif %}</h3>
+        <span id="order-status"></span>
+    </div>
+    <div class="menu-list" id="menu-sortable">
+        {% for item in items %}
+        <div class="menu-item {{ 'inactive' if not item.ativo }}" draggable="true" data-id="{{ item.id }}">
+            <div class="menu-item-left">
+                <span class="drag-handle" title="Arraste para reordenar">☰</span>
+                <span class="menu-pos">{{ loop.index }}</span>
+                <div class="menu-info">
+                    <strong>{{ item.titulo }}</strong>
+                    {% if item.resposta and item.resposta != '__FILA__' %}
+                    <span class="tag tag-leaf">📝 Resposta</span>
+                    {% endif %}
+                    {% if item.resposta == '__FILA__' %}
+                    <span class="tag tag-branch">👥 Fila</span>
+                    {% endif %}
+                    {% if item.has_filhos %}
+                    <span class="tag tag-branch">📂 {{ item.filhos_ativos()|length }} sub-menus</span>
+                    {% endif %}
+                    {% if item.tem_arquivo %}
+                    <span class="tag tag-leaf">📎 {{ item.arquivo_nome }}</span>
+                    {% endif %}
+                    {% if not item.ativo %}
+                    <span class="tag tag-inactive">Inativo</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="menu-item-actions">
+                {% if item.resposta != '__FILA__' %}
+                <a href="{{ url_for('menus_sub', parent_id=item.id) }}" class="btn btn-sm btn-primary">📂 Sub-menus</a>
+                {% endif %}
+                <button class="btn btn-sm btn-secondary" onclick="toggleEdit({{ item.id }})">✏️</button>
+                <form method="POST" action="{{ url_for('menu_toggle', item_id=item.id) }}" style="display:inline">
+                    <button class="btn btn-sm {{ 'btn-warning' if item.ativo else 'btn-success' }}">
+                        {{ '👁️' if item.ativo else '👁️‍🗨️' }}
+                    </button>
+                </form>
+                {% if item.resposta != '__FILA__' %}
+                <form method="POST" action="{{ url_for('menu_delete', item_id=item.id) }}" style="display:inline">
+                    <button class="btn btn-sm btn-danger">🗑️</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        <!-- Form de edição (escondido) -->
+        <div class="edit-form" id="edit-{{ item.id }}" style="display:none">
+            <form method="POST" action="{{ url_for('menu_edit', item_id=item.id) }}">
+                <input type="text" name="titulo" value="{{ item.titulo }}" placeholder="Titulo" required>
+                <textarea name="resposta" placeholder="Resposta (deixe vazio se tiver sub-menus)">{{ item.resposta or '' }}</textarea>
+                <div class="form-group">
+                    <label>Arquivo anexo (selecione da aba Arquivos)</label>
+                    <select name="arquivo_path" style="width:100%; padding:10px 14px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-family:inherit; font-size:14px;">
+                        <option value="">Nenhum arquivo</option>
+                        {% for arq in arquivos_disponiveis %}
+                        <option value="{{ arq.path }}" {% if item.arquivo_path == arq.path %}selected{% endif %}>
+                            {{ arq.emoji }} {{ arq.nome }} ({{ arq.tamanho }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">💾 Salvar</button>
+            </form>
+        </div>
+        {% endfor %}
+
+        {% if not items %}
+        <div class="empty-state">
+            <p>Nenhum item de menu aqui ainda.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Adicionar novo menu -->
+<div class="card">
+    <h3>➕ Adicionar Item</h3>
+    <form method="POST" action="{{ url_for('menu_add') }}" class="add-form">
+        <input type="hidden" name="parent_id" value="{{ parent.id if parent else '' }}">
+        <div class="form-group">
+            <label>Titulo da opcao</label>
+            <input type="text" name="titulo" placeholder="Ex: Como me matricular?" required>
+        </div>
+        <div class="form-group">
+            <label>Resposta (deixe vazio se for categoria com sub-menus)</label>
+            <textarea name="resposta" rows="4" placeholder="Ex: Para se matricular, acesse o portal..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>Arquivo anexo (selecione da aba Arquivos) — opcional</label>
+            <select name="arquivo_path" style="width:100%; padding:10px 14px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-family:inherit; font-size:14px;">
+                <option value="">Nenhum arquivo</option>
+                {% for arq in arquivos_disponiveis %}
+                <option value="{{ arq.path }}">{{ arq.emoji }} {{ arq.nome }} ({{ arq.tamanho }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">➕ Adicionar</button>
+    </form>
+</div>
+
+<script>
+function toggleEdit(id) {
+    const el = document.getElementById('edit-' + id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ===== Drag & Drop Reorder =====
+const sortable = document.getElementById('menu-sortable');
+let dragSrc = null;
+
+sortable.querySelectorAll('.menu-item[draggable]').forEach(function(item) {
+    item.addEventListener('dragstart', function(e) {
+        dragSrc = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', function() {
+        this.classList.remove('dragging');
+        sortable.querySelectorAll('.menu-item').forEach(el => el.classList.remove('drag-over'));
+    });
+    item.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        // Only highlight menu-items, not edit-forms
+        if (this.classList.contains('menu-item') && this !== dragSrc) {
+            this.classList.add('drag-over');
+        }
+    });
+    item.addEventListener('dragleave', function() {
+        this.classList.remove('drag-over');
+    });
+    item.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+        if (dragSrc && dragSrc !== this && this.classList.contains('menu-item')) {
+            // Move the dragged element (and its edit-form sibling)
+            const dragEdit = dragSrc.nextElementSibling;
+            const targetEdit = this.nextElementSibling;
+
+            const allItems = [...sortable.querySelectorAll('.menu-item[draggable]')];
+            const fromIdx = allItems.indexOf(dragSrc);
+            const toIdx = allItems.indexOf(this);
+
+            if (fromIdx < toIdx) {
+                // Move after target's edit form
+                if (targetEdit && targetEdit.classList.contains('edit-form')) {
+                    sortable.insertBefore(dragSrc, targetEdit.nextSibling);
+                    if (dragEdit && dragEdit.classList.contains('edit-form')) {
+                        sortable.insertBefore(dragEdit, dragSrc.nextSibling);
+                    }
+                } else {
+                    sortable.insertBefore(dragSrc, this.nextSibling);
+                    if (dragEdit && dragEdit.classList.contains('edit-form')) {
+                        sortable.insertBefore(dragEdit, dragSrc.nextSibling);
+                    }
+                }
+            } else {
+                sortable.insertBefore(dragSrc, this);
+                if (dragEdit && dragEdit.classList.contains('edit-form')) {
+                    sortable.insertBefore(dragEdit, dragSrc.nextSibling);
+                }
+            }
+
+            // Update numbers and save
+            updatePositions();
+            saveOrder();
+        }
+    });
+});
+
+function updatePositions() {
+    let pos = 1;
+    sortable.querySelectorAll('.menu-item[draggable]').forEach(function(item) {
+        const numEl = item.querySelector('.menu-pos');
+        if (numEl) numEl.textContent = pos++;
+    });
+}
+
+function saveOrder() {
+    const ids = [];
+    sortable.querySelectorAll('.menu-item[draggable]').forEach(function(item) {
+        ids.push(parseInt(item.dataset.id));
+    });
+
+    fetch('/api/menus/reorder', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ids: ids})
+    })
+    .then(r => r.json())
+    .then(data => {
+        const status = document.getElementById('order-status');
+        status.innerHTML = '<span class="order-saved">✅ Ordem salva!</span>';
+    });
+}
+</script>
+{% endblock %}

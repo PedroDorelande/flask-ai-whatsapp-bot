@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Conhecimento — TypeBot{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🧠 Base de Conhecimento</h1>
+    <p class="subtitle">FAQs usadas pela IA para responder perguntas fora do menu</p>
+</div>
+
+<!-- Filtros -->
+<div class="filter-bar">
+    <a href="{{ url_for('knowledge', status='todos') }}" class="btn {{ 'btn-primary' if filtro == 'todos' else 'btn-ghost' }}">Todos</a>
+    <a href="{{ url_for('knowledge', status='Pendente') }}" class="btn {{ 'btn-warning' if filtro == 'Pendente' else 'btn-ghost' }}">⏳ Pendentes</a>
+    <a href="{{ url_for('knowledge', status='Aprovado') }}" class="btn {{ 'btn-success' if filtro == 'Aprovado' else 'btn-ghost' }}">✅ Aprovados</a>
+    <a href="{{ url_for('knowledge', status='Rejeitado') }}" class="btn {{ 'btn-danger' if filtro == 'Rejeitado' else 'btn-ghost' }}">❌ Rejeitados</a>
+
+    {% if faqs|length > 0 %}
+    <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+        {% if filtro == 'Pendente' %}
+        <form method="POST" action="{{ url_for('knowledge_approve_all') }}">
+            <button class="btn btn-success">✅ Aprovar Todas ({{ faqs|length }})</button>
+        </form>
+        <form method="POST" action="{{ url_for('knowledge_reject_all') }}">
+            <button class="btn btn-warning">❌ Rejeitar Todas ({{ faqs|length }})</button>
+        </form>
+        {% endif %}
+        <form method="POST" action="{{ url_for('knowledge_delete_all', status=filtro) }}">
+            <button class="btn btn-danger">🗑️ Apagar Todas ({{ faqs|length }})</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Lista de FAQs -->
+<div class="faq-list">
+    {% for faq in faqs %}
+    <div class="faq-card status-{{ faq.status.lower() }}">
+        <div class="faq-header">
+            <span class="faq-cat">{{ faq.categoria }}</span>
+            <span class="faq-status status-{{ faq.status.lower() }}">{{ faq.status }}</span>
+            {% if faq.origem %}
+            <span class="faq-origin">📄 {{ faq.origem }}</span>
+            {% endif %}
+        </div>
+        <div class="faq-body">
+            <div class="faq-q"><strong>P:</strong> {{ faq.pergunta }}</div>
+            <div class="faq-a"><strong>R:</strong> {{ faq.resposta }}</div>
+        </div>
+        <div class="faq-actions">
+            {% if faq.status != 'Aprovado' %}
+            <form method="POST" action="{{ url_for('knowledge_approve', faq_id=faq.id) }}" style="display:inline">
+                <button class="btn btn-sm btn-success">✅ Aprovar</button>
+            </form>
+            {% endif %}
+            {% if faq.status != 'Rejeitado' %}
+            <form method="POST" action="{{ url_for('knowledge_reject', faq_id=faq.id) }}" style="display:inline">
+                <button class="btn btn-sm btn-warning">❌ Rejeitar</button>
+            </form>
+            {% endif %}
+            <button class="btn btn-sm btn-secondary" onclick="toggleEdit({{ faq.id }})">✏️ Editar</button>
+            <form method="POST" action="{{ url_for('knowledge_delete', faq_id=faq.id) }}" style="display:inline">
+                <button class="btn btn-sm btn-danger">🗑️</button>
+            </form>
+        </div>
+        <!-- Form de edição -->
+        <div class="edit-form" id="edit-{{ faq.id }}" style="display:none">
+            <form method="POST" action="{{ url_for('knowledge_edit', faq_id=faq.id) }}">
+                <input type="text" name="pergunta" value="{{ faq.pergunta }}" required>
+                <textarea name="resposta" rows="3" required>{{ faq.resposta }}</textarea>
+                <input type="text" name="categoria" value="{{ faq.categoria }}" placeholder="Categoria">
+                <button type="submit" class="btn btn-primary">💾 Salvar</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if not faqs %}
+    <div class="empty-state">
+        <p>Nenhuma FAQ encontrada. <a href="{{ url_for('upload_pdf') }}">Faça upload de um PDF</a> para gerar automaticamente!</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function toggleEdit(id) {
+    const el = document.getElementById('edit-' + id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

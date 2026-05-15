@@ -1,0 +1,36 @@
+# Ambiente
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+
+# Banco de dados
+instance/
+*.db
+*.sqlite3
+
+# Uploads do usuário
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Debug/logs
+*.log
+last_webhook.json
+contact_debug.json
+webhook_debug.log
+
+# IDE
+.vscode/
+.idea/
+
+# Docker volumes
+waha-data/
+
+# OS
+.DS_Store
+Thumbs.db

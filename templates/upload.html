@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Upload PDF — TypeBot{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📄 Upload de PDF</h1>
+    <p class="subtitle">Faça upload de material e a IA gerará perguntas e respostas automaticamente</p>
+</div>
+
+<div class="card upload-card">
+    <form method="POST" enctype="multipart/form-data" class="upload-form" id="uploadForm">
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📄</div>
+            <h3>Arraste um PDF aqui ou clique para selecionar</h3>
+            <p>A IA vai ler o conteúdo e gerar perguntas e respostas automaticamente</p>
+            <input type="file" name="pdf" accept=".pdf" id="fileInput" required>
+            <label for="fileInput" class="btn btn-primary">Selecionar PDF</label>
+            <div class="file-name" id="fileName"></div>
+        </div>
+
+        <div id="instrucaoSection" style="display:none; width:100%; max-width:600px;">
+            <div class="form-group">
+                <label>📝 Instruções para a IA (opcional)</label>
+                <textarea name="instrucao" rows="3"
+                    placeholder="Ex: Foque em datas de matrícula e requisitos de aprovação. Gere perguntas sobre horários de atendimento..."
+                    style="width:100%;"></textarea>
+                <span class="text-muted">Especifique sobre o que você quer as perguntas. Se deixar vazio, a IA extrai tudo.</span>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-success btn-lg" id="submitBtn" style="display:none">
+            🚀 Processar PDF com IA
+        </button>
+    </form>
+</div>
+
+<div class="card">
+    <h3>ℹ️ Como funciona</h3>
+    <div class="how-it-works">
+        <div class="step">
+            <span class="step-num">1</span>
+            <p>Você faz <strong>upload do PDF</strong> com o material da disciplina</p>
+        </div>
+        <div class="step">
+            <span class="step-num">2</span>
+            <p>Opcionalmente, especifica <strong>sobre o que</strong> quer as perguntas</p>
+        </div>
+        <div class="step">
+            <span class="step-num">3</span>
+            <p>A IA extrai <strong>5 a 15 perguntas por página</strong> automaticamente</p>
+        </div>
+        <div class="step">
+            <span class="step-num">4</span>
+            <p>Você <strong>revisa e aprova</strong> na aba Conhecimento</p>
+        </div>
+        <div class="step">
+            <span class="step-num">5</span>
+            <p>Ao aprovar, as FAQs viram <strong>itens do menu</strong> automaticamente!</p>
+        </div>
+        <div class="step">
+            <span class="step-num">6</span>
+            <p>O PDF fica <strong>salvo na aba Arquivos</strong> para consulta futura</p>
+        </div>
+    </div>
+</div>
+
+<script>
+const fileInput = document.getElementById('fileInput');
+const fileName = document.getElementById('fileName');
+const submitBtn = document.getElementById('submitBtn');
+const uploadArea = document.getElementById('uploadArea');
+const instrucaoSection = document.getElementById('instrucaoSection');
+const form = document.getElementById('uploadForm');
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        fileName.textContent = '📎 ' + e.target.files[0].name;
+        submitBtn.style.display = 'block';
+        instrucaoSection.style.display = 'block';
+    }
+});
+
+// Drag and drop
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+});
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    fileInput.files = e.dataTransfer.files;
+    fileInput.dispatchEvent(new Event('change'));
+});
+
+form.addEventListener('submit', () => {
+    submitBtn.textContent = '⏳ Processando... (isso pode levar alguns segundos)';
+    submitBtn.disabled = true;
+});
+</script>
+{% endblock %}

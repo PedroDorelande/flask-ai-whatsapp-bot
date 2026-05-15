@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+{% block title %}Fila de Atendimento — TypeBot{% endblock %}
+
+{% block content %}
+<style>
+    .chat-box {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        max-height: 350px;
+        overflow-y: auto;
+        padding: 12px;
+        margin: 8px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .chat-msg {
+        max-width: 80%;
+        padding: 8px 12px;
+        border-radius: 12px;
+        font-size: 13px;
+        line-height: 1.4;
+        word-wrap: break-word;
+    }
+    .chat-msg.sent {
+        align-self: flex-end;
+        background: var(--primary);
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+    .chat-msg.received {
+        align-self: flex-start;
+        background: var(--bg-card-hover);
+        color: var(--text);
+        border-bottom-left-radius: 4px;
+    }
+    .chat-msg .chat-time {
+        font-size: 10px;
+        opacity: 0.6;
+        margin-top: 4px;
+        display: block;
+    }
+    .chat-toggle {
+        cursor: pointer;
+        color: var(--primary-hover);
+        font-size: 12px;
+        border: none;
+        background: none;
+        padding: 4px 8px;
+        transition: color 0.2s;
+    }
+    .chat-toggle:hover { text-decoration: underline; }
+    .config-card { border-left: 3px solid var(--primary); }
+    .config-section { margin-bottom: 20px; }
+    .pergunta-row {
+        display: flex; gap: 8px; align-items: center;
+        margin-bottom: 6px;
+        padding: 6px 8px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        cursor: grab;
+        transition: background 0.15s, box-shadow 0.15s;
+    }
+    .pergunta-row:active { cursor: grabbing; }
+    .pergunta-row.dragging {
+        opacity: 0.4;
+        background: var(--primary);
+    }
+    .pergunta-row.drag-over {
+        box-shadow: 0 -2px 0 var(--primary);
+    }
+    .pergunta-row input { flex: 1; padding: 6px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 12px; }
+    .pergunta-row .campo-input { max-width: 140px; }
+    .drag-handle {
+        cursor: grab;
+        color: var(--text-muted);
+        font-size: 16px;
+        user-select: none;
+        padding: 0 4px;
+    }
+    .drag-handle:active { cursor: grabbing; }
+    .chat-send-form {
+        display: flex; gap: 8px;
+    }
+    .chat-send-form input {
+        flex: 1; padding: 8px 12px;
+        background: var(--bg-card); border: 1px solid var(--border);
+        border-radius: var(--radius-sm); color: var(--text); font-size: 13px;
+    }
+    .chat-sending .btn { opacity: 0.6; pointer-events: none; }
+</style>
+
+<div class="page-header">
+    <h1>👥 Fila de Atendimento</h1>
+    <p class="subtitle">Gerencie a fila de alunos aguardando o coordenador</p>
+</div>
+
+<!-- Configurações -->
+<div class="card config-card" style="margin-bottom: 20px;">
+    <div class="card-header">
+        <h3>⚙️ Configurações da Fila</h3>
+    </div>
+
+    <!-- Mensagem de chamada -->
+    <div class="config-section">
+        <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
+            <div style="flex:1;">
+                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
+                    📢 Mensagem quando chama o próximo (use <code>{nome}</code>):
+                </label>
+                <textarea name="mensagem_chamada" rows="2"
+                    style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_chamada }}</textarea>
+            </div>
+            <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
+        </form>
+    </div>
+
+    <!-- Mensagem de entrada na fila -->
+    <div class="config-section">
+        <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
+            <div style="flex:1;">
+                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
+                    📥 Mensagem quando aluno entra na fila (use <code>{nome}</code>, <code>{posicao}</code>, <code>{total}</code>, <code>{horario}</code>):
+                </label>
+                <textarea name="mensagem_entrada" rows="3"
+                    style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_entrada }}</textarea>
+            </div>
+            <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
+        </form>
+    </div>
+
+    <!-- Mensagem de término -->
+    <div class="config-section">
+        <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
+            <div style="flex:1;">
+                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
+                    ✅ Mensagem de término de atendimento:
+                </label>
+                <textarea name="mensagem_termino" rows="2"
+                    style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_termino }}</textarea>
+            </div>
+            <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
+        </form>
+    </div>
+
+    <!-- Mensagem de cancelamento -->
+    <div class="config-section">
+        <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
+            <div style="flex:1;">
+                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
+                    ❌ Mensagem ao excluir agendamento:
+                </label>
+                <textarea name="mensagem_cancelamento" rows="2"
+                    style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_cancelamento }}</textarea>
+            </div>
+            <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
+        </form>
+    </div>
+
+    <!-- Perguntas do formulário -->
+    <div class="config-section">
+        <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:8px;">
+            📝 Perguntas feitas ao aluno antes de entrar na fila (arraste ☰ para reordenar):
+        </label>
+        <form method="POST" action="{{ url_for('fila_perguntas') }}" id="form-perguntas">
+            <div id="perguntas-container">
+                {% for p in perguntas %}
+                <div class="pergunta-row" draggable="true">
+                    <span class="drag-handle" title="Arraste para reordenar">☰</span>
+                    <input type="text" name="campo[]" value="{{ p.campo }}" placeholder="Campo (ex: nome_completo)" class="campo-input">
+                    <input type="text" name="pergunta[]" value="{{ p.pergunta }}" placeholder="Pergunta enviada ao aluno">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">✕</button>
+                </div>
+                {% endfor %}
+            </div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+                <button type="button" class="btn btn-sm btn-ghost" onclick="addPergunta()">+ Adicionar pergunta</button>
+                <button type="submit" class="btn btn-sm btn-primary">💾 Salvar Perguntas</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Aguardando -->
+<div class="card">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <h3>⏳ Aguardando ({{ esperando|length }})</h3>
+        {% if esperando %}
+        <form method="POST" action="{{ url_for('fila_chamar') }}" style="margin:0;">
+            <button class="btn btn-primary">📢 Chamar Próximo</button>
+        </form>
+        {% endif %}
+    </div>
+    <div class="menu-list">
+        {% for entry in esperando %}
+        <div class="menu-item" style="flex-direction:column; align-items:stretch; gap:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="menu-item-left">
+                    <span class="menu-pos">{{ loop.index }}</span>
+                    <div class="menu-info">
+                        <strong>{{ entry.nome or 'Aluno' }}</strong>
+                        <span class="tag tag-branch">📞 {{ entry.numero }}</span>
+                        <!-- Dados do formulário -->
+                        {% set d = entry.dados_dict %}
+                        {% if d %}
+                        <div class="queue-data">
+                            {% for key, val in d.items() %}
+                            {% if key != 'nome_completo' %}
+                            <span class="queue-data-item"><strong>{{ key }}:</strong> {{ val }}</span>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <span style="font-size:0.8rem; color:var(--text-muted);">
+                            Entrou: {{ entry.criado_em.strftime('%H:%M - %d/%m') }}
+                        </span>
+                    </div>
+                </div>
+                <div class="menu-item-actions">
+                    <button class="chat-toggle" onclick="toggleChat('chat-{{ entry.id }}', '{{ entry.remote_jid }}')">
+                        💬 Chat
+                    </button>
+                    <form method="POST" action="{{ url_for('fila_pular', entry_id=entry.id) }}" style="display:inline">
+                        <button class="btn btn-sm btn-warning" title="Mover para o topo">⬆️</button>
+                    </form>
+                </div>
+            </div>
+            <!-- Chat (escondido) -->
+            <div id="chat-{{ entry.id }}" style="display:none;">
+                <div class="chat-box" id="chatbox-{{ entry.id }}">
+                    <p style="text-align:center; color:var(--text-muted); font-size:12px;">Carregando...</p>
+                </div>
+                <div class="chat-send-form" data-entry-id="{{ entry.id }}" data-jid="{{ entry.remote_jid }}">
+                    <input type="text" placeholder="Digite uma mensagem..." required>
+                    <button class="btn btn-sm btn-primary" onclick="sendMsg(this)">📩 Enviar</button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if not esperando %}
+        <div class="empty-state">
+            <p>Nenhum aluno na fila. 🎉</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Em Atendimento -->
+{% if chamados %}
+<div class="card">
+    <div class="card-header">
+        <h3>📞 Em Atendimento ({{ chamados|length }})</h3>
+        <span style="font-size:12px; color:var(--text-muted);">Bot mutado automaticamente</span>
+    </div>
+    <div class="menu-list">
+        {% for entry in chamados %}
+        <div class="menu-item" style="flex-direction:column; align-items:stretch; gap:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="menu-item-left">
+                    <div class="menu-info">
+                        <strong>{{ entry.nome or 'Aluno' }}</strong>
+                        <span class="tag tag-branch">📞 {{ entry.numero }}</span>
+                        <span class="tag tag-leaf">🔇 Bot parado</span>
+                        {% set d = entry.dados_dict %}
+                        {% if d %}
+                        <div class="queue-data">
+                            {% for key, val in d.items() %}
+                            {% if key != 'nome_completo' %}
+                            <span class="queue-data-item"><strong>{{ key }}:</strong> {{ val }}</span>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <span style="font-size:0.8rem; color:var(--text-muted);">
+                            Chamado: {{ entry.chamado_em.strftime('%H:%M - %d/%m') if entry.chamado_em else '-' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="menu-item-actions">
+                    <button class="chat-toggle" onclick="toggleChat('chat-atend-{{ entry.id }}', '{{ entry.remote_jid }}')">
+                        💬 Chat
+                    </button>
+                    <form method="POST" action="{{ url_for('fila_finalizar', entry_id=entry.id) }}" style="display:inline">
+                        <button class="btn btn-sm btn-success">✅ Finalizar</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('fila_cancelar', entry_id=entry.id) }}" style="display:inline">
+                        <button class="btn btn-sm btn-danger">❌ Excluir Agendamento</button>
+                    </form>
+                </div>
+            </div>
+            <!-- Chat aberto automaticamente -->
+            <div id="chat-atend-{{ entry.id }}">
+                <div class="chat-box" id="chatbox-atend-{{ entry.id }}">
+                    <p style="text-align:center; color:var(--text-muted); font-size:12px;">Carregando...</p>
+                </div>
+                <div class="chat-send-form" data-entry-id="{{ entry.id }}" data-jid="{{ entry.remote_jid }}">
+                    <input type="text" placeholder="Responder ao aluno..." required>
+                    <button class="btn btn-sm btn-primary" onclick="sendMsg(this)">📩 Enviar</button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Histórico -->
+{% if atendidos %}
+<div class="card">
+    <div class="card-header">
+        <h3>✅ Últimos Atendidos</h3>
+    </div>
+    <div class="menu-list">
+        {% for entry in atendidos %}
+        <div class="menu-item" style="opacity:0.6;">
+            <div class="menu-item-left">
+                <div class="menu-info">
+                    <strong>{{ entry.nome or 'Aluno' }}</strong>
+                    <span class="tag tag-branch">📞 {{ entry.numero }}</span>
+                    <span class="tag tag-leaf">Atendido</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+function addPergunta() {
+    const container = document.getElementById('perguntas-container');
+    const row = document.createElement('div');
+    row.className = 'pergunta-row';
+    row.draggable = true;
+    row.innerHTML = `
+        <span class="drag-handle" title="Arraste para reordenar">☰</span>
+        <input type="text" name="campo[]" placeholder="Campo (ex: curso)" class="campo-input">
+        <input type="text" name="pergunta[]" placeholder="Pergunta enviada ao aluno">
+        <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">✕</button>
+    `;
+    container.appendChild(row);
+    initDrag(row);
+}
+
+function toggleChat(containerId, jid) {
+    const el = document.getElementById(containerId);
+    if (el.style.display === 'none') {
+        el.style.display = 'block';
+        loadChat(containerId, jid);
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+function loadChat(containerId, jid) {
+    const boxId = containerId.replace('chat-', 'chatbox-');
+    const box = document.getElementById(boxId);
+    box.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:12px;">Carregando...</p>';
+
+    fetch('/api/fila/mensagens/' + encodeURIComponent(jid))
+        .then(r => r.json())
+        .then(msgs => {
+            if (msgs.length === 0) {
+                box.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:12px;">Nenhuma mensagem encontrada.</p>';
+                return;
+            }
+            let html = '';
+            msgs.forEach(function(m) {
+                const cls = m.fromMe ? 'sent' : 'received';
+                const time = new Date(m.timestamp * 1000);
+                const timeStr = time.getHours().toString().padStart(2,'0') + ':' + time.getMinutes().toString().padStart(2,'0');
+                const body = (m.body || '[midia]').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+                html += '<div class="chat-msg ' + cls + '">' + body + '<span class="chat-time">' + timeStr + '</span></div>';
+            });
+            box.innerHTML = html;
+            box.scrollTop = box.scrollHeight;
+        })
+        .catch(function() {
+            box.innerHTML = '<p style="text-align:center; color:var(--danger); font-size:12px;">Erro ao carregar mensagens.</p>';
+        });
+}
+
+// ===== AJAX Send Message (no page reload) =====
+function sendMsg(btn) {
+    const wrapper = btn.closest('.chat-send-form');
+    const input = wrapper.querySelector('input');
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    const entryId = wrapper.dataset.entryId;
+    const jid = wrapper.dataset.jid;
+
+    // Disable while sending
+    wrapper.classList.add('chat-sending');
+    input.disabled = true;
+
+    fetch('/api/fila/responder/' + entryId, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({mensagem: msg})
+    })
+    .then(r => r.json())
+    .then(data => {
+        input.value = '';
+        input.disabled = false;
+        wrapper.classList.remove('chat-sending');
+        input.focus();
+
+        // Find the chat box and add the sent message instantly
+        const chatBox = wrapper.previousElementSibling;
+        const now = new Date();
+        const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+        const msgEl = document.createElement('div');
+        msgEl.className = 'chat-msg sent';
+        msgEl.innerHTML = msg.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>') +
+            '<span class="chat-time">' + timeStr + '</span>';
+        chatBox.appendChild(msgEl);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    })
+    .catch(() => {
+        input.disabled = false;
+        wrapper.classList.remove('chat-sending');
+        alert('Erro ao enviar mensagem');
+    });
+}
+
+// Allow Enter key to send
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.closest('.chat-send-form')) {
+        e.preventDefault();
+        const btn = e.target.closest('.chat-send-form').querySelector('.btn');
+        sendMsg(btn);
+    }
+});
+
+// ===== Drag & Drop for Perguntas =====
+let dragSrc = null;
+
+function initDrag(row) {
+    row.addEventListener('dragstart', function(e) {
+        dragSrc = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', function() {
+        this.classList.remove('dragging');
+        document.querySelectorAll('.pergunta-row').forEach(r => r.classList.remove('drag-over'));
+    });
+    row.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        this.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', function() {
+        this.classList.remove('drag-over');
+    });
+    row.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+        if (dragSrc !== this) {
+            const container = this.parentNode;
+            const allRows = [...container.querySelectorAll('.pergunta-row')];
+            const fromIdx = allRows.indexOf(dragSrc);
+            const toIdx = allRows.indexOf(this);
+            if (fromIdx < toIdx) {
+                container.insertBefore(dragSrc, this.nextSibling);
+            } else {
+                container.insertBefore(dragSrc, this);
+            }
+        }
+    });
+}
+
+// Init drag on existing rows
+document.querySelectorAll('.pergunta-row').forEach(initDrag);
+
+// Auto-load chats for students being attended
+document.addEventListener('DOMContentLoaded', function() {
+    {% for entry in chamados %}
+    loadChat('chat-atend-{{ entry.id }}', '{{ entry.remote_jid }}');
+    {% endfor %}
+});
+
+// Auto-refresh only if no chat is open for editing
+let autoRefreshTimer = setTimeout(function() {
+    // Don't refresh if user is typing in a chat input
+    const activeEl = document.activeElement;
+    if (activeEl && activeEl.closest('.chat-send-form')) return;
+    location.reload();
+}, 30000);
+</script>
+{% endblock %}

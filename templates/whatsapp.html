@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}WhatsApp — TypeBot{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📱 WhatsApp</h1>
+    <p class="subtitle">Conecte e gerencie sua sessao do WhatsApp</p>
+</div>
+
+<div class="card" id="whatsapp-card">
+    <div class="card-header">
+        <h3>Status da Sessao</h3>
+        <div id="status-badge" class="tag">Carregando...</div>
+    </div>
+
+    <div id="qr-section" style="display:none; text-align:center; padding:2rem;">
+        <p style="margin-bottom:1rem; color: var(--text-muted);">Escaneie o QR Code com seu WhatsApp:</p>
+        <img id="qr-image" src="" alt="QR Code" style="max-width:300px; border-radius:12px; border:2px solid var(--border);">
+        <p style="margin-top:1rem; font-size:0.85rem; color: var(--text-muted);">
+            WhatsApp > Dispositivos Vinculados > Vincular Dispositivo
+        </p>
+    </div>
+
+    <div id="connected-section" style="display:none; text-align:center; padding:2rem;">
+        <div style="font-size:4rem; margin-bottom:1rem;">✅</div>
+        <h2 style="color: var(--success); margin-bottom:0.5rem;">Conectado!</h2>
+        <p id="connected-info" style="color: var(--text-muted);"></p>
+    </div>
+
+    <div id="stopped-section" style="display:none; text-align:center; padding:2rem;">
+        <div style="font-size:4rem; margin-bottom:1rem;">⏹️</div>
+        <h2 style="color: var(--text-muted); margin-bottom:0.5rem;">Sessao Parada</h2>
+        <p style="color: var(--text-muted);">Clique em "Iniciar" para comecar.</p>
+    </div>
+
+    <div id="error-section" style="display:none; text-align:center; padding:2rem;">
+        <div style="font-size:4rem; margin-bottom:1rem;">❌</div>
+        <h2 style="color: var(--danger); margin-bottom:0.5rem;">Erro de Conexao</h2>
+        <p id="error-msg" style="color: var(--text-muted);">Nao foi possivel conectar ao WAHA.</p>
+    </div>
+
+    <div style="display:flex; gap:1rem; justify-content:center; padding:1.5rem; border-top:1px solid var(--border);">
+        <button id="btn-start" class="btn btn-primary" onclick="startSession()">▶️ Iniciar</button>
+        <button id="btn-stop" class="btn btn-danger" onclick="stopSession()">⏹️ Parar</button>
+        <button class="btn btn-secondary" onclick="checkStatus()">🔄 Atualizar</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Comandos do Professor</h3>
+    </div>
+    <div style="padding:1rem;">
+        <table class="data-table" style="width:100%;">
+            <thead>
+                <tr><th>Comando</th><th>O que faz</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><code>!parar</code></td><td>Para o bot para aquele aluno (mute)</td></tr>
+                <tr><td><code>!bot</code></td><td>Reativa o bot para aquele aluno</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+let refreshInterval = null;
+
+function hideAllSections() {
+    document.getElementById('qr-section').style.display = 'none';
+    document.getElementById('connected-section').style.display = 'none';
+    document.getElementById('stopped-section').style.display = 'none';
+    document.getElementById('error-section').style.display = 'none';
+}
+
+function checkStatus() {
+    fetch('/api/whatsapp/status')
+        .then(r => r.json())
+        .then(data => {
+            const badge = document.getElementById('status-badge');
+            const status = (data.status || 'UNKNOWN').toUpperCase();
+            hideAllSections();
+
+            if (status === 'WORKING') {
+                badge.className = 'tag tag-branch';
+                badge.textContent = '🟢 Conectado';
+                document.getElementById('connected-section').style.display = 'block';
+                const info = document.getElementById('connected-info');
+                if (data.me && data.me.pushName) {
+                    info.textContent = 'Conectado como: ' + data.me.pushName;
+                }
+                document.getElementById('btn-start').style.display = 'none';
+                document.getElementById('btn-stop').style.display = '';
+                clearInterval(refreshInterval);
+            } else if (status === 'SCAN_QR_CODE') {
+                badge.className = 'tag tag-leaf';
+                badge.textContent = '📷 Aguardando QR Code';
+                document.getElementById('qr-section').style.display = 'block';
+                document.getElementById('qr-image').src = '/api/whatsapp/qr?' + Date.now();
+                document.getElementById('btn-start').style.display = 'none';
+                document.getElementById('btn-stop').style.display = '';
+                if (!refreshInterval) {
+                    refreshInterval = setInterval(checkStatus, 5000);
+                }
+            } else if (status === 'STOPPED') {
+                badge.className = 'tag tag-inactive';
+                badge.textContent = '⏹️ Parado';
+                document.getElementById('stopped-section').style.display = 'block';
+                document.getElementById('btn-start').style.display = '';
+                document.getElementById('btn-stop').style.display = 'none';
+                clearInterval(refreshInterval);
+            } else if (status === 'STARTING') {
+                badge.className = 'tag tag-leaf';
+                badge.textContent = '⏳ Iniciando...';
+                if (!refreshInterval) {
+                    refreshInterval = setInterval(checkStatus, 3000);
+                }
+            } else {
+                badge.className = 'tag tag-inactive';
+                badge.textContent = '❓ ' + status;
+                document.getElementById('error-section').style.display = 'block';
+                document.getElementById('error-msg').textContent = data.error || 'Status: ' + status;
+            }
+        })
+        .catch(() => {
+            hideAllSections();
+            document.getElementById('error-section').style.display = 'block';
+            document.getElementById('status-badge').className = 'tag tag-inactive';
+            document.getElementById('status-badge').textContent = '❌ Erro';
+        });
+}
+
+function startSession() {
+    fetch('/api/whatsapp/start', {method: 'POST'})
+        .then(() => { setTimeout(checkStatus, 2000); });
+}
+
+function stopSession() {
+    if (confirm('Tem certeza que deseja parar a sessao?')) {
+        fetch('/api/whatsapp/stop', {method: 'POST'})
+            .then(() => { setTimeout(checkStatus, 1000); });
+    }
+}
+
+// Check on load
+checkStatus();
+</script>
+{% endblock %}

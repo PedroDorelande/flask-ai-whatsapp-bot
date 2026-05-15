@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Sessões — TypeBot{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>💬 Sessões Ativas</h1>
+    <p class="subtitle">Veja o status do bot para cada aluno</p>
+</div>
+
+<div class="card">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Contato</th>
+                <th>Status do Bot</th>
+                <th>Última Atualização</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in sessoes %}
+            <tr>
+                <td><code>{{ s.remote_jid }}</code></td>
+                <td>
+                    {% if s.ia_ativa %}
+                    <span class="status-badge active">🟢 Ativo</span>
+                    {% else %}
+                    <span class="status-badge muted">🔴 Mutado</span>
+                    {% endif %}
+                </td>
+                <td>{{ s.atualizado_em.strftime('%d/%m/%Y %H:%M') if s.atualizado_em else '-' }}</td>
+                <td>
+                    {% if not s.ia_ativa %}
+                    <form method="POST" action="{{ url_for('session_unmute', session_id=s.id) }}" style="display:inline">
+                        <button class="btn btn-sm btn-success">🔄 Reativar</button>
+                    </form>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('session_delete', session_id=s.id) }}" style="display:inline">
+                        <button class="btn btn-sm btn-danger">🗑️</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not sessoes %}
+            <tr>
+                <td colspan="4" class="text-center">Nenhuma sessão registrada ainda.</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

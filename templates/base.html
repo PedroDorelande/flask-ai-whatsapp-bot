@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TypeBot Educacional{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">🤖</div>
+            <h2>TypeBot</h2>
+            <span class="badge">EDU</span>
+        </div>
+
+        <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">
+            🌙 Modo Escuro
+        </button>
+
+        <button class="theme-toggle" id="bot-toggle-btn"
+            onclick="toggleBot()"
+            style="background: {{ 'var(--success)' if bot_ativo else 'var(--danger)' }}; color: white; font-weight: 600;">
+            {{ '🟢 Bot Ativo' if bot_ativo else '🔴 Bot Desativado' }}
+        </button>
+
+        <ul class="nav-links">
+            <li class="nav-group-label">Principal</li>
+            <li><a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <span class="icon">📊</span> Dashboard
+            </a></li>
+            <li><a href="{{ url_for('whatsapp') }}" class="{% if request.endpoint == 'whatsapp' %}active{% endif %}">
+                <span class="icon">📱</span> WhatsApp
+            </a></li>
+
+            <li class="nav-group-label">Bot</li>
+            <li><a href="{{ url_for('menus') }}" class="{% if request.endpoint in ('menus', 'menus_sub') %}active{% endif %}">
+                <span class="icon">📋</span> Menus do Bot
+            </a></li>
+            <li><a href="{{ url_for('arquivos') }}" class="{% if request.endpoint == 'arquivos' %}active{% endif %}">
+                <span class="icon">📁</span> Arquivos
+            </a></li>
+            <li><a href="{{ url_for('knowledge') }}" class="{% if request.endpoint == 'knowledge' %}active{% endif %}">
+                <span class="icon">🧠</span> Conhecimento
+            </a></li>
+            <li><a href="{{ url_for('upload_pdf') }}" class="{% if request.endpoint == 'upload_pdf' %}active{% endif %}">
+                <span class="icon">📄</span> Upload PDF
+            </a></li>
+
+            <li class="nav-group-label">Atendimento</li>
+            <li><a href="{{ url_for('fila') }}" class="{% if request.endpoint == 'fila' %}active{% endif %}">
+                <span class="icon">👥</span> Fila
+            </a></li>
+            <li><a href="{{ url_for('sessions') }}" class="{% if request.endpoint == 'sessions' %}active{% endif %}">
+                <span class="icon">💬</span> Sessões
+            </a></li>
+        </ul>
+    </nav>
+
+    <main class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+    function toggleTheme() {
+        const html = document.documentElement;
+        const current = html.getAttribute('data-theme');
+        const next = current === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+        updateThemeBtn(next);
+    }
+
+    function updateThemeBtn(theme) {
+        const btn = document.getElementById('theme-btn');
+        if (btn) {
+            btn.textContent = theme === 'dark' ? '🌙 Modo Escuro' : '☀️ Modo Claro';
+        }
+    }
+
+    // Apply saved theme on load
+    (function() {
+        const saved = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', saved);
+        updateThemeBtn(saved);
+    })();
+
+    function toggleBot() {
+        const btn = document.getElementById('bot-toggle-btn');
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+
+        fetch('/api/bot/toggle', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                if (data.bot_ativo) {
+                    btn.textContent = '🟢 Bot Ativo';
+                    btn.style.background = 'var(--success)';
+                } else {
+                    btn.textContent = '🔴 Bot Desativado';
+                    btn.style.background = 'var(--danger)';
+                }
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                alert('Erro ao alternar bot');
+            });
+    }
+    </script>
+</body>
+</html>
