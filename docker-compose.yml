@@ -5,25 +5,62 @@ services:
     image: devlikeapro/waha:latest
     container_name: typebot-waha
     restart: unless-stopped
+    expose:
+      - "3000"
     ports:
       - "3000:3000"
     environment:
-      # ===== WAHA Credentials =====
       WAHA_API_KEY: "${WAHA_API_KEY}"
       WAHA_DASHBOARD_USERNAME: "${WAHA_DASHBOARD_USERNAME:-admin}"
       WAHA_DASHBOARD_PASSWORD: "${WAHA_DASHBOARD_PASSWORD}"
       WHATSAPP_SWAGGER_USERNAME: "${WAHA_DASHBOARD_USERNAME:-admin}"
       WHATSAPP_SWAGGER_PASSWORD: "${WAHA_DASHBOARD_PASSWORD}"
-      # ===== Webhook =====
-      WHATSAPP_HOOK_URL: "http://host.docker.internal:5000/webhook"
+      WHATSAPP_HOOK_URL: "http://app:5000/webhook"
       WHATSAPP_HOOK_EVENTS: "message,message.any"
-      # ===== Config =====
       WHATSAPP_DEFAULT_ENGINE: "WEBJS"
       WHATSAPP_RESTART_ALL_SESSIONS: "true"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      NODE_OPTIONS: "--max-old-space-size=256"
     volumes:
       - waha-data:/app/.sessions
+    networks:
+      - typebot-net
+
+  app:
+    build: .
+    container_name: typebot-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      WAHA_API_URL: "http://waha:3000"
+      FLASK_DEBUG: "false"
+    volumes:
+      - ./instance:/app/instance
+      - ./static/uploads:/app/static/uploads
+    depends_on:
+      - waha
+    networks:
+      - typebot-net
+
+  nginx:
+    image: nginx:alpine
+    container_name: typebot-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./static:/usr/share/nginx/static:ro
+    depends_on:
+      - app
+    networks:
+      - typebot-net
 
 volumes:
   waha-data:
+
+networks:
+  typebot-net:
+    driver: bridge
