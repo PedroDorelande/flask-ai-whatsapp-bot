@@ -97,92 +97,6 @@
     <p class="subtitle">Gerencie a fila de alunos aguardando o coordenador</p>
 </div>
 
-<!-- Configurações -->
-<div class="card config-card" style="margin-bottom: 20px;">
-    <div class="card-header">
-        <h3>⚙️ Configurações da Fila</h3>
-    </div>
-
-    <!-- Mensagem de chamada -->
-    <div class="config-section">
-        <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
-            <div style="flex:1;">
-                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
-                    📢 Mensagem quando chama o próximo (use <code>{nome}</code>):
-                </label>
-                <textarea name="mensagem_chamada" rows="2"
-                    style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_chamada }}</textarea>
-            </div>
-            <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
-        </form>
-    </div>
-
-    <!-- Mensagem de entrada na fila -->
-    <div class="config-section">
-        <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
-            <div style="flex:1;">
-                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
-                    📥 Mensagem quando aluno entra na fila (use <code>{nome}</code>, <code>{posicao}</code>, <code>{total}</code>, <code>{horario}</code>):
-                </label>
-                <textarea name="mensagem_entrada" rows="3"
-                    style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_entrada }}</textarea>
-            </div>
-            <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
-        </form>
-    </div>
-
-    <!-- Mensagem de término -->
-    <div class="config-section">
-        <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
-            <div style="flex:1;">
-                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
-                    ✅ Mensagem de término de atendimento:
-                </label>
-                <textarea name="mensagem_termino" rows="2"
-                    style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_termino }}</textarea>
-            </div>
-            <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
-        </form>
-    </div>
-
-    <!-- Mensagem de cancelamento -->
-    <div class="config-section">
-        <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
-            <div style="flex:1;">
-                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
-                    ❌ Mensagem ao excluir agendamento:
-                </label>
-                <textarea name="mensagem_cancelamento" rows="2"
-                    style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_cancelamento }}</textarea>
-            </div>
-            <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
-        </form>
-    </div>
-
-    <!-- Perguntas do formulário -->
-    <div class="config-section">
-        <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:8px;">
-            📝 Perguntas feitas ao aluno antes de entrar na fila (arraste ☰ para reordenar):
-        </label>
-        <form method="POST" action="{{ url_for('fila_perguntas') }}" id="form-perguntas">
-            <div id="perguntas-container">
-                {% for p in perguntas %}
-                <div class="pergunta-row" draggable="true">
-                    <span class="drag-handle" title="Arraste para reordenar">☰</span>
-                    <input type="text" name="campo[]" value="{{ p.campo }}" placeholder="Campo (ex: nome_completo)" class="campo-input">
-                    <input type="text" name="pergunta[]" value="{{ p.pergunta }}" placeholder="Pergunta enviada ao aluno">
-                    <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">✕</button>
-                </div>
-                {% endfor %}
-            </div>
-            <div style="display:flex; gap:8px; margin-top:8px;">
-                <button type="button" class="btn btn-sm btn-ghost" onclick="addPergunta()">+ Adicionar pergunta</button>
-                <button type="submit" class="btn btn-sm btn-primary">💾 Salvar Perguntas</button>
-            </div>
-        </form>
-    </div>
-</div>
-
 <!-- Aguardando -->
 <div class="card">
     <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
@@ -222,6 +136,9 @@
                     <button class="chat-toggle" onclick="toggleChat('chat-{{ entry.id }}', '{{ entry.remote_jid }}')">
                         💬 Chat
                     </button>
+                    <form method="POST" action="{{ url_for('fila_ja_atendi', entry_id=entry.id) }}" style="display:inline">
+                        <button class="btn btn-sm btn-success" title="Já atendi (sem enviar mensagem)">✅ Já atendi</button>
+                    </form>
                     <form method="POST" action="{{ url_for('fila_pular', entry_id=entry.id) }}" style="display:inline">
                         <button class="btn btn-sm btn-warning" title="Mover para o topo">⬆️</button>
                     </form>
@@ -285,6 +202,9 @@
                     </button>
                     <form method="POST" action="{{ url_for('fila_finalizar', entry_id=entry.id) }}" style="display:inline">
                         <button class="btn btn-sm btn-success">✅ Finalizar</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('fila_ja_atendi', entry_id=entry.id) }}" style="display:inline">
+                        <button class="btn btn-sm btn-ghost" title="Já atendi pelo celular (sem enviar mensagem)">📱 Já atendi</button>
                     </form>
                     <form method="POST" action="{{ url_for('fila_cancelar', entry_id=entry.id) }}" style="display:inline">
                         <button class="btn btn-sm btn-danger">❌ Excluir Agendamento</button>

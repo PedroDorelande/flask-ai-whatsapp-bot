@@ -251,6 +251,24 @@ def finish_attendance(entry_id: int):
               file=sys.stderr, flush=True)
 
 
+def finish_silent(entry_id: int):
+    """Marca atendimento como concluído SEM enviar mensagem.
+    
+    Usado quando o coordenador atende pelo celular e não quer
+    que o bot envie mensagem automática de término.
+    """
+    entry = QueueEntry.query.get(entry_id)
+    if entry:
+        entry.status = 'atendido'
+        db.session.commit()
+
+        # AUTO-UNMUTE: reativa o bot para este aluno
+        sess.unmute_bot(entry.remote_jid)
+
+        print(f'[FILA] Atendimento de {entry.remote_jid} finalizado (silencioso) + BOT REATIVADO',
+              file=sys.stderr, flush=True)
+
+
 def cancel_attendance(entry_id: int):
     """Cancela agendamento. Envia mensagem e reativa o bot."""
     entry = QueueEntry.query.get(entry_id)

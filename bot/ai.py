@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 from openai import OpenAI
 from models.database import db, Knowledge
@@ -8,11 +9,49 @@ client = None
 
 
 def get_client():
-    """Lazy-init do cliente OpenAI."""
+    """Lazy-init do cliente OpenAI. Recria se a key mudar."""
     global client
-    if client is None:
-        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+    key = os.getenv('OPENAI_API_KEY', '')
+    if client is None or getattr(client, '_custom_key', '') != key:
+        client = OpenAI(api_key=key)
+        client._custom_key = key  # Track which key we initialized with
     return client
+
+
+def _log_ai(msg: str):
+    """Log para debug de chamadas OpenAI."""
+    line = f'[AI] {msg}'
+    print(line, file=sys.stderr, flush=True)
+
+
+def test_openai_key() -> dict:
+    """Testa se a API key da OpenAI está funcionando.
+    Retorna dict com 'ok', 'message', e opcionalmente 'error'.
+    """
+    key = os.getenv('OPENAI_API_KEY', '')
+    if not key:
+        return {'ok': False, 'message': 'OPENAI_API_KEY não está definida no .env', 'error': 'missing_key'}
+
+    masked = key[:8] + '...' + key[-4:]
+    _log_ai(f'Testing key: {masked}')
+
+    try:
+        ai = get_client()
+        response = ai.chat.completions.create(
+            model='gpt-4o-mini',
+            temperature=0,
+            max_tokens=10,
+            messages=[
+                {'role': 'user', 'content': 'Responda apenas: OK'}
+            ]
+        )
+        answer = response.choices[0].message.content
+        _log_ai(f'Test OK: {answer}')
+        return {'ok': True, 'message': f'API Key funcionando! Resposta: {answer}', 'key_masked': masked}
+    except Exception as e:
+        error_msg = str(e)
+        _log_ai(f'Test FAILED: {error_msg}')
+        return {'ok': False, 'message': f'Erro: {error_msg}', 'error': type(e).__name__, 'key_masked': masked}
 
 
 def search_knowledge(question: str) -> str | None:
@@ -64,6 +103,7 @@ def ai_fallback(chat_id: str, question: str):
 
     try:
         ai = get_client()
+        _log_ai(f'AI fallback for {chat_id}: "{question[:60]}"')
         response = ai.chat.completions.create(
             model='gpt-4o-mini',
             temperature=0.3,
@@ -85,10 +125,11 @@ def ai_fallback(chat_id: str, question: str):
             ]
         )
         answer = response.choices[0].message.content
+        _log_ai(f'AI response OK: {answer[:80]}...')
         waha.send_text(chat_id, answer)
         waha.send_text(chat_id, '📋 Envie *menu* para ver as opções.')
     except Exception as e:
-        print(f'[ERRO] OpenAI: {e}')
+        _log_ai(f'AI fallback ERROR: {type(e).__name__}: {e}')
         waha.send_text(chat_id,
             '⚠️ Desculpe, tive um problema ao processar sua pergunta.\n'
             'Envie *menu* para ver as opções ou aguarde o professor.')
@@ -96,10 +137,20 @@ def ai_fallback(chat_id: str, question: str):
 
 def process_pdf_text(text: str, filename: str, instrucao: str = '') -> list[dict]:
     """Usa IA para transformar texto de PDF em pares de FAQ."""
+    key = os.getenv('OPENAI_API_KEY', '')
+    if not key:
+        _log_ai('ERROR: OPENAI_API_KEY não está definida!')
+        raise ValueError('OPENAI_API_KEY não está definida no .env. Configure a chave antes de processar PDFs.')
+
+    masked = key[:8] + '...' + key[-4:]
+    _log_ai(f'Processing PDF "{filename}" with key {masked}')
+
     ai = get_client()
     # Divide em chunks de 4000 caracteres
     chunks = [text[i:i+4000] for i in range(0, len(text), 4000)]
     all_faqs = []
+
+    _log_ai(f'PDF has {len(text)} chars, split into {len(chunks)} chunks')
 
     # Monta prompt com instrução do coordenador
     instrucao_extra = ''
@@ -108,6 +159,7 @@ def process_pdf_text(text: str, filename: str, instrucao: str = '') -> list[dict
 
     for i, chunk in enumerate(chunks):
         try:
+            _log_ai(f'Processing chunk {i+1}/{len(chunks)} ({len(chunk)} chars)...')
             response = ai.chat.completions.create(
                 model='gpt-4o-mini',
                 temperature=0.2,
@@ -134,10 +186,12 @@ def process_pdf_text(text: str, filename: str, instrucao: str = '') -> list[dict
             )
 
             content = response.choices[0].message.content
+            _log_ai(f'Chunk {i+1} response received ({len(content)} chars)')
             # Limpa possíveis artefatos de markdown
             content = content.replace('```json', '').replace('```', '').strip()
             parsed = json.loads(content)
 
+            faqs_count = 0
             for faq in parsed.get('faqs', []):
                 knowledge = Knowledge(
                     pergunta=faq['pergunta'],
@@ -148,10 +202,16 @@ def process_pdf_text(text: str, filename: str, instrucao: str = '') -> list[dict
                 )
                 db.session.add(knowledge)
                 all_faqs.append(faq)
+                faqs_count += 1
 
+            _log_ai(f'Chunk {i+1}: {faqs_count} FAQs extracted')
+
+        except json.JSONDecodeError as e:
+            _log_ai(f'ERROR chunk {i+1}: JSON parse error: {e}')
+            _log_ai(f'Raw content: {content[:200]}...')
         except Exception as e:
-            print(f'[ERRO] Chunk {i+1}: {e}')
+            _log_ai(f'ERROR chunk {i+1}: {type(e).__name__}: {e}')
 
     db.session.commit()
+    _log_ai(f'DONE: {len(all_faqs)} total FAQs from "{filename}"')
     return all_faqs
-

@@ -140,6 +140,24 @@ def handle_webhook():
     if '@g.us' in from_jid or '@g.us' in (to_jid or ''):
         return jsonify({'status': 'group ignored'}), 200
 
+    # Ignore newsletter channels
+    if '@newsletter' in from_jid or '@newsletter' in (to_jid or ''):
+        return jsonify({'status': 'newsletter ignored'}), 200
+
+    # ======================
+    # RESOLVE LID → real number EARLY (needed for blacklist)
+    # ======================
+    numero_real = waha.resolve_lid(from_jid, payload)
+
+    # ======================
+    # BLACKLIST — ignore blocked numbers completely
+    # Uses both the raw JID AND the resolved number for matching
+    # ======================
+    from models.database import Blacklist
+    if Blacklist.is_blocked(from_jid, resolved_number=numero_real):
+        _log(f'  -> BLACKLISTED {from_jid} (num={numero_real}), ignored')
+        return jsonify({'status': 'blacklisted'}), 200
+
     # ========================================
     # BRANCH 1: Mensagem com fromMe=True
     # Only react to EXPLICIT commands from the professor:
@@ -171,8 +189,7 @@ def handle_webhook():
     # ========================================
     chat_id = from_jid
 
-    # Resolver LID → número real para display (mas usa JID original para enviar)
-    numero_real = waha.resolve_lid(from_jid, payload)
+    # numero_real já foi resolvido acima (antes do blacklist check)
     _log(f'  -> ALUNO msg from {chat_id} (num={numero_real}): "{body}"')
 
     # Check if bot is active for this student

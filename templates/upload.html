@@ -64,6 +64,50 @@
     </div>
 </div>
 
+<div class="card" style="margin-top: 1.5rem;">
+    <h3>🔑 Teste da API OpenAI</h3>
+    <p style="margin-bottom: 0.75rem; opacity: 0.7;">Verifique se a chave da OpenAI está funcionando antes de processar PDFs.</p>
+    <button class="btn btn-primary" id="testOpenaiBtn" onclick="testOpenAI()">🧪 Testar Chave</button>
+    <div id="testResult" style="margin-top: 0.75rem; display: none; padding: 0.75rem; border-radius: 8px;"></div>
+</div>
+
+<script>
+function testOpenAI() {
+    const btn = document.getElementById('testOpenaiBtn');
+    const result = document.getElementById('testResult');
+    btn.disabled = true;
+    btn.textContent = '⏳ Testando...';
+    result.style.display = 'block';
+    result.style.background = 'var(--bg-secondary)';
+    result.textContent = 'Conectando à OpenAI...';
+
+    fetch('/api/openai/test')
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.textContent = '🧪 Testar Chave';
+            if (data.ok) {
+                result.style.background = 'rgba(40, 167, 69, 0.2)';
+                result.style.border = '1px solid #28a745';
+                result.innerHTML = '✅ <strong>' + data.message + '</strong>';
+            } else {
+                result.style.background = 'rgba(220, 53, 69, 0.2)';
+                result.style.border = '1px solid #dc3545';
+                result.innerHTML = '❌ <strong>' + data.message + '</strong>';
+            }
+            if (data.key_masked) {
+                result.innerHTML += '<br><small>Chave: ' + data.key_masked + '</small>';
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.textContent = '🧪 Testar Chave';
+            result.style.background = 'rgba(220, 53, 69, 0.2)';
+            result.innerHTML = '❌ Erro de conexão: ' + err;
+        });
+}
+</script>
+
 <script>
 const fileInput = document.getElementById('fileInput');
 const fileName = document.getElementById('fileName');

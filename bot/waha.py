@@ -282,7 +282,7 @@ def stop_session():
 def configure_webhook(flask_url: str = None):
     """Auto-configura o webhook do WAHA para apontar para o Flask."""
     if not flask_url:
-        flask_url = os.getenv('FLASK_PUBLIC_URL', 'http://host.docker.internal:5000')
+        flask_url = os.getenv('FLASK_PUBLIC_URL', 'http://app:5000')
     webhook_url = f'{flask_url}/webhook'
     try:
         # Tenta via PUT /api/sessions/{session}

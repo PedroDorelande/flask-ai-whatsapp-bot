@@ -181,6 +181,94 @@ class UploadedFile(db.Model):
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class Blacklist(db.Model):
+    """Números bloqueados — o bot ignora completamente essas pessoas."""
+    __tablename__ = 'blacklist'
+
+    id = db.Column(db.Integer, primary_key=True)
+    numero = db.Column(db.String(50), unique=True, nullable=False)  # Ex: 5511999998888
+    nome = db.Column(db.String(200), nullable=True)  # Nome da pessoa bloqueada
+    motivo = db.Column(db.String(255), nullable=True)
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @staticmethod
+    def _normalize_variants(raw: str) -> list:
+        """Gera todas as variantes possíveis de um número BR para comparação.
+
+        Exemplos de entrada → variantes geradas:
+          '558599695603'  → ['558599695603', '55859969​5603', '8599695603', '859969​5603',
+                             '99695603', '9969​5603']
+          '5585996956​03'  → idem (com/sem nono dígito)
+        """
+        import re
+        digits = re.sub(r'\D', '', raw)
+        if not digits:
+            return []
+
+        variants = {digits}
+
+        # Se começa com 55 (DDI Brasil), gerar sem DDI
+        if digits.startswith('55') and len(digits) >= 12:
+            sem_ddi = digits[2:]
+            variants.add(sem_ddi)
+        else:
+            sem_ddi = digits
+            # Também tenta com DDI
+            variants.add('55' + digits)
+
+        # Para números BR: DDD(2) + celular(8 ou 9 dígitos)
+        # Celular com 9: DDD(2) + 9XXXX-XXXX (9 dígitos) = 11 sem DDI, 13 com DDI
+        # Celular sem 9: DDD(2) + XXXX-XXXX  (8 dígitos) = 10 sem DDI, 12 com DDI
+
+        # Trabalhar sem DDI
+        if sem_ddi.startswith('55'):
+            sem_ddi = sem_ddi[2:]
+
+        if len(sem_ddi) == 11 and sem_ddi[2] == '9':
+            # Tem o 9, gerar versão sem o 9
+            sem_nove = sem_ddi[:2] + sem_ddi[3:]
+            variants.add(sem_nove)
+            variants.add('55' + sem_nove)
+            variants.add(sem_ddi)
+            variants.add('55' + sem_ddi)
+        elif len(sem_ddi) == 10:
+            # Não tem o 9, gerar versão com o 9
+            com_nove = sem_ddi[:2] + '9' + sem_ddi[2:]
+            variants.add(com_nove)
+            variants.add('55' + com_nove)
+            variants.add(sem_ddi)
+            variants.add('55' + sem_ddi)
+
+        return list(variants)
+
+    @staticmethod
+    def is_blocked(jid: str, resolved_number: str = None) -> bool:
+        """Verifica se o JID ou número resolvido está na blacklist.
+
+        Args:
+            jid: JID completo (ex: '37826196451479@lid' ou '558599695603@c.us')
+            resolved_number: Número real resolvido a partir do LID (ex: '558599695603')
+        """
+        if not jid and not resolved_number:
+            return False
+
+        # Coletar todos os "candidatos" a comparar
+        candidates = set()
+
+        if jid:
+            jid_raw = jid.split('@')[0]
+            candidates.update(Blacklist._normalize_variants(jid_raw))
+
+        if resolved_number:
+            candidates.update(Blacklist._normalize_variants(resolved_number))
+
+        if not candidates:
+            return False
+
+        # Uma única query com IN ao invés de múltiplas queries
+        return Blacklist.query.filter(Blacklist.numero.in_(candidates)).first() is not None
+
+
 def init_db(app):
     """Inicializa o banco e cria dados de exemplo se estiver vazio."""
     db.init_app(app)

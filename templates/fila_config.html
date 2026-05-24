@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}Configurações da Fila — TypeBot{% endblock %}
+
+{% block content %}
+<style>
+    .config-card { border-left: 3px solid var(--primary); }
+    .config-section { margin-bottom: 20px; }
+    .pergunta-row {
+        display: flex; gap: 8px; align-items: center;
+        margin-bottom: 6px;
+        padding: 6px 8px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        cursor: grab;
+        transition: background 0.15s, box-shadow 0.15s;
+    }
+    .pergunta-row:active { cursor: grabbing; }
+    .pergunta-row.dragging {
+        opacity: 0.4;
+        background: var(--primary);
+    }
+    .pergunta-row.drag-over {
+        box-shadow: 0 -2px 0 var(--primary);
+    }
+    .pergunta-row input { flex: 1; padding: 6px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 12px; }
+    .pergunta-row .campo-input { max-width: 140px; }
+    .drag-handle {
+        cursor: grab;
+        color: var(--text-muted);
+        font-size: 16px;
+        user-select: none;
+        padding: 0 4px;
+    }
+    .drag-handle:active { cursor: grabbing; }
+</style>
+
+<div class="page-header">
+    <h1>⚙️ Configurações da Fila</h1>
+    <p class="subtitle">Personalize as mensagens e perguntas do formulário da fila de atendimento</p>
+</div>
+
+<!-- Mensagem de chamada -->
+<div class="card config-card" style="margin-bottom: 20px;">
+    <div class="card-header">
+        <h3>📢 Mensagens Automáticas</h3>
+    </div>
+
+    <div class="config-section">
+        <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
+            <div style="flex:1;">
+                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
+                    📢 Mensagem quando chama o próximo (use <code>{nome}</code>):
+                </label>
+                <textarea name="mensagem_chamada" rows="2"
+                    style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_chamada }}</textarea>
+            </div>
+            <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
+        </form>
+    </div>
+
+    <div class="config-section">
+        <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
+            <div style="flex:1;">
+                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
+                    📥 Mensagem quando aluno entra na fila (use <code>{nome}</code>, <code>{posicao}</code>, <code>{total}</code>, <code>{horario}</code>):
+                </label>
+                <textarea name="mensagem_entrada" rows="3"
+                    style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_entrada }}</textarea>
+            </div>
+            <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
+        </form>
+    </div>
+
+    <div class="config-section">
+        <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
+            <div style="flex:1;">
+                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
+                    ✅ Mensagem de término de atendimento:
+                </label>
+                <textarea name="mensagem_termino" rows="2"
+                    style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_termino }}</textarea>
+            </div>
+            <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
+        </form>
+    </div>
+
+    <div class="config-section">
+        <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
+            <div style="flex:1;">
+                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
+                    ❌ Mensagem ao excluir agendamento:
+                </label>
+                <textarea name="mensagem_cancelamento" rows="2"
+                    style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_cancelamento }}</textarea>
+            </div>
+            <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
+        </form>
+    </div>
+</div>
+
+<!-- Perguntas do formulário -->
+<div class="card config-card">
+    <div class="card-header">
+        <h3>📝 Perguntas do Formulário</h3>
+    </div>
+    <p style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">
+        Perguntas feitas ao aluno antes de entrar na fila. Arraste ☰ para reordenar.
+    </p>
+    <form method="POST" action="{{ url_for('fila_perguntas') }}" id="form-perguntas">
+        <div id="perguntas-container">
+            {% for p in perguntas %}
+            <div class="pergunta-row" draggable="true">
+                <span class="drag-handle" title="Arraste para reordenar">☰</span>
+                <input type="text" name="campo[]" value="{{ p.campo }}" placeholder="Campo (ex: nome_completo)" class="campo-input">
+                <input type="text" name="pergunta[]" value="{{ p.pergunta }}" placeholder="Pergunta enviada ao aluno">
+                <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">✕</button>
+            </div>
+            {% endfor %}
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+            <button type="button" class="btn btn-sm btn-ghost" onclick="addPergunta()">+ Adicionar pergunta</button>
+            <button type="submit" class="btn btn-sm btn-primary">💾 Salvar Perguntas</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function addPergunta() {
+    const container = document.getElementById('perguntas-container');
+    const row = document.createElement('div');
+    row.className = 'pergunta-row';
+    row.draggable = true;
+    row.innerHTML = `
+        <span class="drag-handle" title="Arraste para reordenar">☰</span>
+        <input type="text" name="campo[]" placeholder="Campo (ex: curso)" class="campo-input">
+        <input type="text" name="pergunta[]" placeholder="Pergunta enviada ao aluno">
+        <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">✕</button>
+    `;
+    container.appendChild(row);
+    initDrag(row);
+}
+
+// ===== Drag & Drop for Perguntas =====
+let dragSrc = null;
+
+function initDrag(row) {
+    row.addEventListener('dragstart', function(e) {
+        dragSrc = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', function() {
+        this.classList.remove('dragging');
+        document.querySelectorAll('.pergunta-row').forEach(r => r.classList.remove('drag-over'));
+    });
+    row.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        this.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', function() {
+        this.classList.remove('drag-over');
+    });
+    row.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+        if (dragSrc !== this) {
+            const container = this.parentNode;
+            const allRows = [...container.querySelectorAll('.pergunta-row')];
+            const fromIdx = allRows.indexOf(dragSrc);
+            const toIdx = allRows.indexOf(this);
+            if (fromIdx < toIdx) {
+                container.insertBefore(dragSrc, this.nextSibling);
+            } else {
+                container.insertBefore(dragSrc, this);
+            }
+        }
+    });
+}
+
+// Init drag on existing rows
+document.querySelectorAll('.pergunta-row').forEach(initDrag);
+</script>
+{% endblock %}

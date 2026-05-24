@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Blacklist — TypeBot{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🚫 Blacklist</h1>
+    <p class="subtitle">Números bloqueados — o bot ignora completamente essas pessoas</p>
+</div>
+
+<!-- Formulário para adicionar número -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h3 style="margin-bottom: 1rem;">➕ Adicionar Número</h3>
+    <form method="POST" action="{{ url_for('blacklist_add') }}" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;">
+        <div style="flex: 1; min-width: 180px;">
+            <label style="display: block; margin-bottom: 0.3rem; font-size: 0.85rem; opacity: 0.7;">Número (com DDD e código do país)</label>
+            <input type="text" name="numero" placeholder="Ex: 5511999998888" required
+                style="width: 100%; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); font-size: 0.95rem;">
+        </div>
+        <div style="flex: 1; min-width: 180px;">
+            <label style="display: block; margin-bottom: 0.3rem; font-size: 0.85rem; opacity: 0.7;">Nome da Pessoa</label>
+            <input type="text" name="nome" placeholder="Ex: João Silva"
+                style="width: 100%; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); font-size: 0.95rem;">
+        </div>
+        <div style="flex: 1; min-width: 180px;">
+            <label style="display: block; margin-bottom: 0.3rem; font-size: 0.85rem; opacity: 0.7;">Motivo (opcional)</label>
+            <input type="text" name="motivo" placeholder="Ex: Spam, número de teste..."
+                style="width: 100%; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); font-size: 0.95rem;">
+        </div>
+        <button type="submit" class="btn btn-danger" style="white-space: nowrap;">🚫 Bloquear</button>
+    </form>
+    <p style="margin-top: 0.5rem; font-size: 0.8rem; opacity: 0.5;">
+        💡 Coloque o número completo com código do país. Ex: <code>55</code> (Brasil) + <code>11</code> (DDD) + <code>999998888</code> (número)
+    </p>
+</div>
+
+<!-- Tabela de números bloqueados -->
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3>📋 Números Bloqueados ({{ bloqueados | length }})</h3>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Número</th>
+                <th>Nome</th>
+                <th>Motivo</th>
+                <th>Bloqueado em</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in bloqueados %}
+            <tr>
+                <td><code style="font-size: 1rem;">{{ b.numero }}</code></td>
+                <td>{{ b.nome or '—' }}</td>
+                <td>{{ b.motivo or '—' }}</td>
+                <td>{{ b.criado_em.strftime('%d/%m/%Y %H:%M') if b.criado_em else '-' }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('blacklist_delete', bl_id=b.id) }}" style="display:inline">
+                        <button class="btn btn-sm btn-success">✅ Desbloquear</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if not bloqueados %}
+            <tr>
+                <td colspan="5" class="text-center" style="padding: 2rem; opacity: 0.5;">
+                    Nenhum número bloqueado. A blacklist está vazia.
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

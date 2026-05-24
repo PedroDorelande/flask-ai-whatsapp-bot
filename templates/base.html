@@ -52,8 +52,14 @@
             <li><a href="{{ url_for('fila') }}" class="{% if request.endpoint == 'fila' %}active{% endif %}">
                 <span class="icon">👥</span> Fila
             </a></li>
+            <li><a href="{{ url_for('fila_config') }}" class="{% if request.endpoint == 'fila_config' %}active{% endif %}">
+                <span class="icon">⚙️</span> Config. Fila
+            </a></li>
             <li><a href="{{ url_for('sessions') }}" class="{% if request.endpoint == 'sessions' %}active{% endif %}">
                 <span class="icon">💬</span> Sessões
+            </a></li>
+            <li><a href="{{ url_for('blacklist') }}" class="{% if request.endpoint == 'blacklist' %}active{% endif %}">
+                <span class="icon">🚫</span> Blacklist
             </a></li>
         </ul>
     </nav>

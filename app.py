@@ -2,9 +2,9 @@ import os
 import uuid
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
 from dotenv import load_dotenv
-from models.database import db, init_db, MenuItem, Knowledge, SessionControl, QueueEntry, BotConfig
+from models.database import db, init_db, MenuItem, Knowledge, SessionControl, QueueEntry, BotConfig, Blacklist
 from bot.webhook import webhook_bp
-from bot.ai import process_pdf_text
+from bot.ai import process_pdf_text, test_openai_key
 from bot import waha
 from bot import queue as fila_module
 import PyPDF2
@@ -550,6 +550,13 @@ def fila_finalizar(entry_id):
     return redirect(url_for('fila'))
 
 
+@app.route('/fila/ja-atendi/<int:entry_id>', methods=['POST'])
+def fila_ja_atendi(entry_id):
+    fila_module.finish_silent(entry_id)
+    flash('Removido da fila (sem mensagem enviada).', 'success')
+    return redirect(url_for('fila'))
+
+
 @app.route('/fila/cancelar/<int:entry_id>', methods=['POST'])
 def fila_cancelar(entry_id):
     fila_module.cancel_attendance(entry_id)
@@ -588,8 +595,34 @@ def fila_responder_ajax(entry_id):
     return jsonify({'ok': False, 'error': 'Mensagem vazia'}), 400
 
 
-@app.route('/fila/config', methods=['POST'])
+@app.route('/fila/config', methods=['GET', 'POST'])
 def fila_config():
+    if request.method == 'GET':
+        # Mensagens customizáveis
+        msg_padrao = ('*Sua vez chegou, {nome}!*\n\n'
+                      'O coordenador vai te atender agora.\n'
+                      'Aguarde a mensagem dele nesta conversa.')
+        mensagem_chamada = BotConfig.get('mensagem_chamada', msg_padrao)
+
+        msg_entrada_padrao = fila_module.MENSAGEM_ENTRADA_PADRAO
+        mensagem_entrada = BotConfig.get('mensagem_entrada', msg_entrada_padrao)
+
+        msg_termino_padrao = fila_module.MENSAGEM_TERMINO_PADRAO
+        mensagem_termino = BotConfig.get('mensagem_termino', msg_termino_padrao)
+
+        msg_cancel_padrao = fila_module.MENSAGEM_CANCELAMENTO_PADRAO
+        mensagem_cancelamento = BotConfig.get('mensagem_cancelamento', msg_cancel_padrao)
+
+        perguntas = fila_module.get_perguntas()
+
+        return render_template('fila_config.html',
+            mensagem_chamada=mensagem_chamada,
+            mensagem_entrada=mensagem_entrada,
+            mensagem_termino=mensagem_termino,
+            mensagem_cancelamento=mensagem_cancelamento,
+            perguntas=perguntas)
+
+    # POST — salva configurações
     saved = []
     msg_chamada = request.form.get('mensagem_chamada', '').strip()
     if msg_chamada:
@@ -609,7 +642,7 @@ def fila_config():
         saved.append('cancelamento')
     if saved:
         flash('Mensagem atualizada!', 'success')
-    return redirect(url_for('fila'))
+    return redirect(url_for('fila_config'))
 
 
 @app.route('/api/fila/mensagens/<path:jid>')
@@ -646,7 +679,7 @@ def fila_perguntas():
             perguntas.append({'campo': campo, 'pergunta': texto})
     fila_module.set_perguntas(perguntas)
     flash(f'{len(perguntas)} perguntas salvas!', 'success')
-    return redirect(url_for('fila'))
+    return redirect(url_for('fila_config'))
 
 
 # =====================================================
@@ -767,6 +800,72 @@ def arquivo_gerar_perguntas(filename):
         flash(f'Erro: {str(e)}', 'error')
 
     return redirect(url_for('knowledge', status='Pendente'))
+
+
+# =====================================================
+# BLACKLIST — Números bloqueados
+# =====================================================
+@app.route('/blacklist')
+def blacklist():
+    bloqueados = Blacklist.query.order_by(Blacklist.criado_em.desc()).all()
+    return render_template('blacklist.html', bloqueados=bloqueados)
+
+
+@app.route('/blacklist/add', methods=['POST'])
+def blacklist_add():
+    numero = request.form.get('numero', '').strip()
+    nome = request.form.get('nome', '').strip() or None
+    motivo = request.form.get('motivo', '').strip() or None
+
+    if not numero:
+        flash('Digite um número!', 'error')
+        return redirect(url_for('blacklist'))
+
+    # Limpa: remove espaços, traços, parênteses, + — só deixa dígitos
+    import re
+    numero_limpo = re.sub(r'\D', '', numero)
+    if not numero_limpo:
+        flash('Número inválido!', 'error')
+        return redirect(url_for('blacklist'))
+
+    # Normaliza para formato completo com DDI 55
+    # Se o usuário digitou sem DDI (ex: 85999998888), adiciona 55
+    if not numero_limpo.startswith('55'):
+        if len(numero_limpo) in (10, 11):  # DDD + número (8 ou 9 dígitos)
+            numero_limpo = '55' + numero_limpo
+
+    # Verifica se já existe (usando todas as variantes)
+    variantes = Blacklist._normalize_variants(numero_limpo)
+    existing = Blacklist.query.filter(Blacklist.numero.in_(variantes)).first()
+    if existing:
+        flash(f'O número {numero_limpo} já está na blacklist (cadastrado como {existing.numero})!', 'warning')
+        return redirect(url_for('blacklist'))
+
+    bl = Blacklist(numero=numero_limpo, nome=nome, motivo=motivo)
+    db.session.add(bl)
+    db.session.commit()
+    flash(f'Número {numero_limpo} adicionado à blacklist!', 'success')
+    return redirect(url_for('blacklist'))
+
+
+@app.route('/blacklist/delete/<int:bl_id>', methods=['POST'])
+def blacklist_delete(bl_id):
+    bl = Blacklist.query.get_or_404(bl_id)
+    numero = bl.numero
+    db.session.delete(bl)
+    db.session.commit()
+    flash(f'Número {numero} removido da blacklist!', 'success')
+    return redirect(url_for('blacklist'))
+
+
+# =====================================================
+# OPENAI — Teste de chave
+# =====================================================
+@app.route('/api/openai/test')
+def openai_test():
+    """Testa se a API key da OpenAI está funcionando."""
+    result = test_openai_key()
+    return jsonify(result)
 
 
 if __name__ == '__main__':
