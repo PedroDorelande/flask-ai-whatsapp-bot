@@ -499,6 +499,121 @@ def bot_toggle():
 
 
 # =====================================================
+# CONFIGURAÇÕES GERAIS
+# =====================================================
+
+def _find_env_path():
+    """Encontra o caminho do arquivo .env."""
+    # Dentro do Docker: /app/.env
+    for path in ['/app/.env', os.path.join(os.path.dirname(__file__), '.env')]:
+        if os.path.exists(path):
+            return path
+    # Fallback: cria no diretório do app
+    return os.path.join(os.path.dirname(__file__), '.env')
+
+
+def _read_env_file():
+    """Lê o arquivo .env e retorna como dicionário."""
+    env_path = _find_env_path()
+    config = {}
+    if os.path.exists(env_path):
+        with open(env_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, _, value = line.partition('=')
+                    config[key.strip()] = value.strip()
+    return config
+
+
+def _write_env_file(config):
+    """Escreve o dicionário de config no arquivo .env."""
+    env_path = _find_env_path()
+    lines = [
+        '# ===== WAHA (WhatsApp HTTP API) =====',
+        f'WAHA_API_URL={config.get("WAHA_API_URL", "http://waha:3000")}',
+        f'WAHA_API_KEY={config.get("WAHA_API_KEY", "")}',
+        f'WAHA_SESSION={config.get("WAHA_SESSION", "default")}',
+        f'WAHA_DASHBOARD_USERNAME={config.get("WAHA_DASHBOARD_USERNAME", "admin")}',
+        f'WAHA_DASHBOARD_PASSWORD={config.get("WAHA_DASHBOARD_PASSWORD", "")}',
+        '',
+        '# ===== OpenAI =====',
+        f'OPENAI_API_KEY={config.get("OPENAI_API_KEY", "")}',
+        '',
+        '# ===== Flask =====',
+        f'FLASK_SECRET_KEY={config.get("FLASK_SECRET_KEY", "dev-secret")}',
+        f'FLASK_DEBUG={config.get("FLASK_DEBUG", "false")}',
+        f'FLASK_PUBLIC_URL={config.get("FLASK_PUBLIC_URL", "")}',
+        '',
+    ]
+    with open(env_path, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(lines))
+
+
+@app.route('/configuracoes')
+def configuracoes():
+    """Página de configurações gerais."""
+    config = _read_env_file()
+    return render_template('configuracoes.html', config=config)
+
+
+@app.route('/api/configuracoes/salvar', methods=['POST'])
+def configuracoes_salvar():
+    """Salva as configurações no .env e atualiza as variáveis de ambiente em tempo real."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Dados inválidos'}), 400
+
+        # Lê o .env atual e mescla com os novos valores
+        config = _read_env_file()
+        campos_permitidos = [
+            'OPENAI_API_KEY', 'WAHA_API_KEY', 'WAHA_SESSION',
+            'WAHA_DASHBOARD_USERNAME', 'WAHA_DASHBOARD_PASSWORD',
+            'WAHA_API_URL', 'FLASK_SECRET_KEY', 'FLASK_DEBUG', 'FLASK_PUBLIC_URL'
+        ]
+        for campo in campos_permitidos:
+            if campo in data:
+                config[campo] = data[campo]
+                # Atualiza os.environ para efeito imediato no Flask
+                os.environ[campo] = data[campo]
+
+        # Escreve no arquivo .env
+        _write_env_file(config)
+
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/configuracoes/restart', methods=['POST'])
+def configuracoes_restart():
+    """Reinicia os containers Docker para aplicar mudanças do .env."""
+    import subprocess
+    import threading
+
+    def _restart():
+        """Executa o restart em background para não bloquear a resposta HTTP."""
+        import time
+        time.sleep(2)  # Espera a resposta HTTP ser enviada
+        try:
+            subprocess.run(
+                ['docker', 'compose', 'up', '-d', '--build'],
+                cwd=os.path.dirname(_find_env_path()),
+                timeout=120
+            )
+        except Exception:
+            pass
+
+    try:
+        thread = threading.Thread(target=_restart, daemon=True)
+        thread.start()
+        return jsonify({'success': True, 'message': 'Reiniciando containers...'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =====================================================
 # FILA — Sistema de fila para coordenador
 # =====================================================
 @app.route('/fila')

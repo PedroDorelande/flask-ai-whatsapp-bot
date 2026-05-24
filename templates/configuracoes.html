@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Configurações — TypeBot{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>⚙️ Configurações Gerais</h1>
+    <p class="subtitle">Gerencie suas chaves de API, credenciais e configurações do sistema</p>
+</div>
+
+<form id="config-form" onsubmit="salvarConfig(event)">
+
+    <!-- ============================================ -->
+    <!-- CARD 1: OpenAI / ChatGPT                     -->
+    <!-- ============================================ -->
+    <div class="card">
+        <div class="card-header">
+            <h3>🤖 OpenAI (ChatGPT)</h3>
+            <div class="tag tag-branch">API</div>
+        </div>
+        <div style="padding:1.5rem;">
+            <div style="margin-bottom:1.25rem;">
+                <label style="display:block; font-weight:600; margin-bottom:0.5rem; color:var(--text);">Chave da API OpenAI</label>
+                <input type="text" name="OPENAI_API_KEY" value="{{ config.OPENAI_API_KEY or '' }}"
+                    placeholder="sk-proj-..."
+                    style="width:100%; padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:monospace; font-size:0.9rem;">
+                <p style="margin-top:0.35rem; font-size:0.8rem; color:var(--text-muted);">Sua chave da OpenAI. Encontre em: <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--primary);">platform.openai.com/api-keys</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- CARD 2: WAHA - Credenciais                   -->
+    <!-- ============================================ -->
+    <div class="card">
+        <div class="card-header">
+            <h3>📱 WAHA (WhatsApp)</h3>
+            <div class="tag tag-leaf">Conexão</div>
+        </div>
+        <div style="padding:1.5rem;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem;">
+                <div>
+                    <label style="display:block; font-weight:600; margin-bottom:0.5rem; color:var(--text);">API Key do WAHA</label>
+                    <input type="text" name="WAHA_API_KEY" value="{{ config.WAHA_API_KEY or '' }}"
+                        placeholder="sua_chave_waha"
+                        style="width:100%; padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:monospace; font-size:0.9rem;">
+                    <p style="margin-top:0.35rem; font-size:0.8rem; color:var(--text-muted);">Chave de autenticação da API do WAHA</p>
+                </div>
+                <div>
+                    <label style="display:block; font-weight:600; margin-bottom:0.5rem; color:var(--text);">Sessão WAHA</label>
+                    <input type="text" name="WAHA_SESSION" value="{{ config.WAHA_SESSION or 'default' }}"
+                        placeholder="default"
+                        style="width:100%; padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:monospace; font-size:0.9rem;">
+                    <p style="margin-top:0.35rem; font-size:0.8rem; color:var(--text-muted);">Nome da sessão (normalmente "default")</p>
+                </div>
+            </div>
+
+            <div style="margin-top:1.25rem; padding-top:1.25rem; border-top:1px solid var(--border);">
+                <h4 style="margin-bottom:1rem; color:var(--text-muted); font-size:0.9rem; text-transform:uppercase; letter-spacing:0.5px;">Login do Painel WAHA</h4>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem;">
+                    <div>
+                        <label style="display:block; font-weight:600; margin-bottom:0.5rem; color:var(--text);">👤 Usuário</label>
+                        <input type="text" name="WAHA_DASHBOARD_USERNAME" value="{{ config.WAHA_DASHBOARD_USERNAME or 'admin' }}"
+                            placeholder="admin"
+                            style="width:100%; padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:0.9rem;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-weight:600; margin-bottom:0.5rem; color:var(--text);">🔑 Senha</label>
+                        <input type="text" name="WAHA_DASHBOARD_PASSWORD" value="{{ config.WAHA_DASHBOARD_PASSWORD or '' }}"
+                            placeholder="senha_do_painel"
+                            style="width:100%; padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:0.9rem;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- CARD 3: Flask / Sistema                      -->
+    <!-- ============================================ -->
+    <div class="card">
+        <div class="card-header">
+            <h3>🔧 Sistema (Flask)</h3>
+            <div class="tag tag-inactive">Avançado</div>
+        </div>
+        <div style="padding:1.5rem;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem;">
+                <div>
+                    <label style="display:block; font-weight:600; margin-bottom:0.5rem; color:var(--text);">Chave Secreta do Flask</label>
+                    <input type="text" name="FLASK_SECRET_KEY" value="{{ config.FLASK_SECRET_KEY or '' }}"
+                        placeholder="chave-secreta-aqui"
+                        style="width:100%; padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:monospace; font-size:0.9rem;">
+                    <p style="margin-top:0.35rem; font-size:0.8rem; color:var(--text-muted);">Usada para segurança das sessões web</p>
+                </div>
+                <div>
+                    <label style="display:block; font-weight:600; margin-bottom:0.5rem; color:var(--text);">URL Pública</label>
+                    <input type="text" name="FLASK_PUBLIC_URL" value="{{ config.FLASK_PUBLIC_URL or '' }}"
+                        placeholder="http://143.95.210.62"
+                        style="width:100%; padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:monospace; font-size:0.9rem;">
+                    <p style="margin-top:0.35rem; font-size:0.8rem; color:var(--text-muted);">URL do servidor (usada para webhooks)</p>
+                </div>
+            </div>
+            <div style="margin-top:1.25rem;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem;">
+                    <div>
+                        <label style="display:block; font-weight:600; margin-bottom:0.5rem; color:var(--text);">Modo Debug</label>
+                        <select name="FLASK_DEBUG"
+                            style="width:100%; padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:0.9rem;">
+                            <option value="false" {% if config.FLASK_DEBUG != 'true' %}selected{% endif %}>Desativado (Produção)</option>
+                            <option value="true" {% if config.FLASK_DEBUG == 'true' %}selected{% endif %}>Ativado (Desenvolvimento)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-weight:600; margin-bottom:0.5rem; color:var(--text);">URL do WAHA</label>
+                        <input type="text" name="WAHA_API_URL" value="{{ config.WAHA_API_URL or 'http://waha:3000' }}"
+                            placeholder="http://waha:3000"
+                            style="width:100%; padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:monospace; font-size:0.9rem;">
+                        <p style="margin-top:0.35rem; font-size:0.8rem; color:var(--text-muted);">Dentro do Docker use: http://waha:3000</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- BOTÕES DE AÇÃO                               -->
+    <!-- ============================================ -->
+    <div class="card">
+        <div style="padding:1.5rem; display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+            <button type="submit" class="btn btn-primary" id="btn-salvar" style="padding:0.75rem 2rem; font-size:1rem;">
+                💾 Salvar Configurações
+            </button>
+            <button type="button" class="btn btn-danger" onclick="reiniciarSistema()" id="btn-restart" style="padding:0.75rem 2rem; font-size:1rem;">
+                🔄 Reiniciar Sistema
+            </button>
+            <span id="status-msg" style="color:var(--text-muted); font-size:0.9rem;"></span>
+        </div>
+        <div style="padding:0 1.5rem 1.5rem;">
+            <div style="background:var(--surface); border-radius:8px; padding:0.75rem 1rem; border:1px solid var(--border);">
+                <p style="font-size:0.85rem; color:var(--text-muted); margin:0;">
+                    💡 <strong>Salvar</strong> grava as alterações no arquivo <code>.env</code> e atualiza o sistema em tempo real.
+                    <strong>Reiniciar</strong> recria os containers Docker para aplicar mudanças no WAHA (usuario, senha, API key).
+                </p>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+function salvarConfig(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-salvar');
+    const msg = document.getElementById('status-msg');
+    btn.disabled = true;
+    btn.textContent = '⏳ Salvando...';
+    msg.textContent = '';
+
+    const formData = new FormData(document.getElementById('config-form'));
+    const data = {};
+    formData.forEach((value, key) => { data[key] = value; });
+
+    fetch('/api/configuracoes/salvar', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(result => {
+        btn.disabled = false;
+        if (result.success) {
+            btn.textContent = '✅ Salvo!';
+            msg.textContent = 'Configurações salvas com sucesso!';
+            msg.style.color = 'var(--success)';
+            setTimeout(() => { btn.textContent = '💾 Salvar Configurações'; }, 3000);
+        } else {
+            btn.textContent = '❌ Erro';
+            msg.textContent = result.error || 'Erro ao salvar';
+            msg.style.color = 'var(--danger)';
+            setTimeout(() => { btn.textContent = '💾 Salvar Configurações'; }, 3000);
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.textContent = '💾 Salvar Configurações';
+        msg.textContent = 'Erro de conexão';
+        msg.style.color = 'var(--danger)';
+    });
+}
+
+function reiniciarSistema() {
+    if (!confirm('Isso vai reiniciar todos os containers Docker.\n\nO bot ficará offline por ~30 segundos.\n\nDeseja continuar?')) return;
+
+    const btn = document.getElementById('btn-restart');
+    const msg = document.getElementById('status-msg');
+    btn.disabled = true;
+    btn.textContent = '⏳ Reiniciando...';
+    msg.textContent = 'Recriando containers... Aguarde ~30s';
+    msg.style.color = 'var(--warning)';
+
+    fetch('/api/configuracoes/restart', { method: 'POST' })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            msg.textContent = '✅ Sistema reiniciado! A página vai recarregar em 15 segundos...';
+            msg.style.color = 'var(--success)';
+            setTimeout(() => { location.reload(); }, 15000);
+        } else {
+            btn.disabled = false;
+            btn.textContent = '🔄 Reiniciar Sistema';
+            msg.textContent = '❌ Erro: ' + (result.error || 'Falha ao reiniciar');
+            msg.style.color = 'var(--danger)';
+        }
+    })
+    .catch(() => {
+        msg.textContent = '🔄 Sistema reiniciando... A página vai recarregar em 20 segundos.';
+        msg.style.color = 'var(--warning)';
+        setTimeout(() => { location.reload(); }, 20000);
+    });
+}
+</script>
+{% endblock %}

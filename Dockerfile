@@ -2,9 +2,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instalar dependências primeiro (cache de build)
+# Instalar dependências Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
+
+# Instalar Docker CLI (para o botão de restart nas configurações)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates && \
+    curl -fsSL https://get.docker.com -o get-docker.sh && \
+    sh get-docker.sh && \
+    rm get-docker.sh && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copiar código
 COPY . .

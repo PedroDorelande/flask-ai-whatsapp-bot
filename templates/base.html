@@ -61,6 +61,11 @@
             <li><a href="{{ url_for('blacklist') }}" class="{% if request.endpoint == 'blacklist' %}active{% endif %}">
                 <span class="icon">🚫</span> Blacklist
             </a></li>
+
+            <li class="nav-group-label">Sistema</li>
+            <li><a href="{{ url_for('configuracoes') }}" class="{% if request.endpoint == 'configuracoes' %}active{% endif %}">
+                <span class="icon">⚙️</span> Configurações
+            </a></li>
         </ul>
     </nav>
 
