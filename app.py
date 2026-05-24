@@ -452,7 +452,10 @@ def session_delete(session_id):
 # =====================================================
 @app.route('/whatsapp')
 def whatsapp():
-    return render_template('whatsapp.html')
+    waha_url = os.getenv('WAHA_API_URL', 'http://localhost:3000')
+    waha_user = os.getenv('WAHA_DASHBOARD_USERNAME', 'admin')
+    waha_pass = os.getenv('WAHA_DASHBOARD_PASSWORD', '')
+    return render_template('whatsapp.html', waha_url=waha_url, waha_user=waha_user, waha_pass=waha_pass)
 
 
 @app.route('/api/whatsapp/status')

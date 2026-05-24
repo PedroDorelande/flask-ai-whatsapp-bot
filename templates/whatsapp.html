@@ -4,48 +4,97 @@
 {% block content %}
 <div class="page-header">
     <h1>📱 WhatsApp</h1>
-    <p class="subtitle">Conecte e gerencie sua sessao do WhatsApp</p>
+    <p class="subtitle">Tutorial de configuracao do WAHA para conectar o WhatsApp ao bot</p>
 </div>
 
-<div class="card" id="whatsapp-card">
+<!-- ============================================ -->
+<!-- CARD 1: TUTORIAL - CONFIGURAÇÃO DO WAHA      -->
+<!-- ============================================ -->
+<div class="card">
     <div class="card-header">
-        <h3>Status da Sessao</h3>
-        <div id="status-badge" class="tag">Carregando...</div>
+        <h3>📖 Tutorial: Configurar o WAHA</h3>
+        <div class="tag tag-leaf">Passo a Passo</div>
     </div>
-
-    <div id="qr-section" style="display:none; text-align:center; padding:2rem;">
-        <p style="margin-bottom:1rem; color: var(--text-muted);">Escaneie o QR Code com seu WhatsApp:</p>
-        <img id="qr-image" src="" alt="QR Code" style="max-width:300px; border-radius:12px; border:2px solid var(--border);">
-        <p style="margin-top:1rem; font-size:0.85rem; color: var(--text-muted);">
-            WhatsApp > Dispositivos Vinculados > Vincular Dispositivo
+    <div style="padding:1.5rem;">
+        <p style="color: var(--text-muted); margin-bottom:1.5rem;">
+            Siga estes passos para configurar o WAHA corretamente. Isso so precisa ser feito <strong>1 vez</strong> na primeira instalacao, ou quando trocar de numero.
         </p>
-    </div>
 
-    <div id="connected-section" style="display:none; text-align:center; padding:2rem;">
-        <div style="font-size:4rem; margin-bottom:1rem;">✅</div>
-        <h2 style="color: var(--success); margin-bottom:0.5rem;">Conectado!</h2>
-        <p id="connected-info" style="color: var(--text-muted);"></p>
-    </div>
+        <!-- PASSO 1 -->
+        <div style="background: var(--surface); border-radius:12px; padding:1.25rem; margin-bottom:1rem; border-left:4px solid var(--primary);">
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.75rem;">
+                <span style="background:var(--primary); color:#fff; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem;">1</span>
+                <strong style="font-size:1.05rem;">Acessar o Painel do WAHA</strong>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom:0.75rem;">Abra o painel do WAHA no navegador. O login e a senha estao no seu arquivo <code>.env</code>:</p>
+            <div style="background: var(--bg); border-radius:8px; padding:0.75rem 1rem; font-family:monospace; font-size:0.9rem; margin-bottom:0.75rem;">
+                <div>📍 Link: <a id="waha-link" href="#" target="_blank" style="color:var(--primary); font-weight:600;"></a></div>
+                <div style="margin-top:0.5rem;">👤 Usuario: <strong style="color:var(--text); user-select:all;">{{ waha_user }}</strong></div>
+                <div>🔑 Senha: <strong style="color:var(--text); user-select:all;">{{ waha_pass }}</strong></div>
+            </div>
+            <a id="waha-btn" href="#" target="_blank" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:0.5rem; text-decoration:none;">
+                🔗 Abrir Painel do WAHA
+            </a>
+        </div>
 
-    <div id="stopped-section" style="display:none; text-align:center; padding:2rem;">
-        <div style="font-size:4rem; margin-bottom:1rem;">⏹️</div>
-        <h2 style="color: var(--text-muted); margin-bottom:0.5rem;">Sessao Parada</h2>
-        <p style="color: var(--text-muted);">Clique em "Iniciar" para comecar.</p>
-    </div>
+        <!-- PASSO 2 -->
+        <div style="background: var(--surface); border-radius:12px; padding:1.25rem; margin-bottom:1rem; border-left:4px solid var(--warning);">
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.75rem;">
+                <span style="background:var(--warning); color:#fff; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem;">2</span>
+                <strong style="font-size:1.05rem;">Configurar o Webhook (Receber Mensagens)</strong>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom:0.75rem;">No painel do WAHA, va na sessao <strong>"default"</strong> e configure o webhook para que as mensagens cheguem no bot:</p>
+            <div style="background: var(--bg); border-radius:8px; padding:0.75rem 1rem; font-family:monospace; font-size:0.85rem; margin-bottom:0.75rem;">
+                <div>📌 <strong>Webhook URL:</strong></div>
+                <div id="webhook-box" style="margin-top:0.25rem; padding:0.5rem; background:var(--surface); border-radius:6px; border:1px solid var(--border); cursor:pointer;" title="Clique para copiar">
+                    <span id="webhook-url" style="color:var(--success);"></span>
+                    <span style="float:right; color:var(--text-muted); font-size:0.8rem;">📋 copiar</span>
+                </div>
+                <div style="margin-top:0.75rem;">📌 <strong>Events (marque estes):</strong></div>
+                <div style="margin-top:0.25rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+                    <span style="padding:0.25rem 0.75rem; background:var(--primary); color:#fff; border-radius:20px; font-size:0.8rem;">message</span>
+                    <span style="padding:0.25rem 0.75rem; background:var(--primary); color:#fff; border-radius:20px; font-size:0.8rem;">message.any</span>
+                    <span style="padding:0.25rem 0.75rem; background:var(--primary); color:#fff; border-radius:20px; font-size:0.8rem;">session.status</span>
+                </div>
+        </div>
 
-    <div id="error-section" style="display:none; text-align:center; padding:2rem;">
-        <div style="font-size:4rem; margin-bottom:1rem;">❌</div>
-        <h2 style="color: var(--danger); margin-bottom:0.5rem;">Erro de Conexao</h2>
-        <p id="error-msg" style="color: var(--text-muted);">Nao foi possivel conectar ao WAHA.</p>
-    </div>
+        <!-- PASSO 3 -->
+        <div style="background: var(--surface); border-radius:12px; padding:1.25rem; margin-bottom:1rem; border-left:4px solid var(--success);">
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.75rem;">
+                <span style="background:var(--success); color:#fff; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem;">3</span>
+                <strong style="font-size:1.05rem;">Conectar o WhatsApp (QR Code)</strong>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom:0.75rem;">No painel do WAHA, clique em <strong>"Start"</strong> na sessao "default". O QR Code vai aparecer. Depois:</p>
+            <ol style="color: var(--text-muted); padding-left:1.25rem; line-height:2;">
+                <li>No celular, abra o <strong>WhatsApp</strong></li>
+                <li>Va em <strong>Configuracoes</strong> → <strong>Aparelhos Conectados</strong></li>
+                <li>Toque em <strong>"Conectar um Aparelho"</strong></li>
+                <li>Escaneie o <strong>QR Code</strong> que apareceu no painel do WAHA</li>
+                <li>Aguarde o status mudar para <strong>"WORKING"</strong></li>
+            </ol>
+        </div>
 
-    <div style="display:flex; gap:1rem; justify-content:center; padding:1.5rem; border-top:1px solid var(--border);">
-        <button id="btn-start" class="btn btn-primary" onclick="startSession()">▶️ Iniciar</button>
-        <button id="btn-stop" class="btn btn-danger" onclick="stopSession()">⏹️ Parar</button>
-        <button class="btn btn-secondary" onclick="checkStatus()">🔄 Atualizar</button>
+        <!-- PASSO 4 -->
+        <div style="background: var(--surface); border-radius:12px; padding:1.25rem; margin-bottom:1rem; border-left:4px solid var(--danger);">
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.75rem;">
+                <span style="background:var(--danger); color:#fff; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem;">4</span>
+                <strong style="font-size:1.05rem;">Trocar de Numero</strong>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom:0.75rem;">Para trocar o numero do WhatsApp conectado:</p>
+            <ol style="color: var(--text-muted); padding-left:1.25rem; line-height:2;">
+                <li>Acesse o <strong>painel do WAHA</strong> (Passo 1)</li>
+                <li>Na sessao "default", clique em <strong>"Logout"</strong> ou <strong>"Stop"</strong></li>
+                <li>Depois clique em <strong>"Start"</strong> para gerar um novo QR Code</li>
+                <li>Escaneie com o <strong>novo celular/numero</strong></li>
+                <li>O webhook ja vai estar configurado — nao precisa refazer!</li>
+            </ol>
+        </div>
     </div>
 </div>
 
+<!-- ============================================ -->
+<!-- CARD 2: COMANDOS DO PROFESSOR                -->
+<!-- ============================================ -->
 <div class="card">
     <div class="card-header">
         <h3>Comandos do Professor</h3>
@@ -64,85 +113,35 @@
 </div>
 
 <script>
-let refreshInterval = null;
+// Gera o link do WAHA dinamicamente baseado no hostname atual
+const host = window.location.hostname;
+const wahaUrl = 'http://' + host + ':3000/dashboard';
+document.getElementById('waha-link').href = wahaUrl;
+document.getElementById('waha-link').textContent = wahaUrl;
+document.getElementById('waha-btn').href = wahaUrl;
 
-function hideAllSections() {
-    document.getElementById('qr-section').style.display = 'none';
-    document.getElementById('connected-section').style.display = 'none';
-    document.getElementById('stopped-section').style.display = 'none';
-    document.getElementById('error-section').style.display = 'none';
+const webhookUrl = 'http://' + host + ':5000/webhook';
+document.getElementById('webhook-url').textContent = webhookUrl;
+document.getElementById('webhook-box').onclick = function() { copyText(webhookUrl); };
+
+function copyText(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        // Feedback visual temporario
+        const el = event.currentTarget;
+        const original = el.querySelector('span:last-child').textContent;
+        el.querySelector('span:last-child').textContent = '✅ copiado!';
+        setTimeout(() => {
+            el.querySelector('span:last-child').textContent = original;
+        }, 2000);
+    }).catch(() => {
+        // Fallback para navegadores antigos
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+    });
 }
-
-function checkStatus() {
-    fetch('/api/whatsapp/status')
-        .then(r => r.json())
-        .then(data => {
-            const badge = document.getElementById('status-badge');
-            const status = (data.status || 'UNKNOWN').toUpperCase();
-            hideAllSections();
-
-            if (status === 'WORKING') {
-                badge.className = 'tag tag-branch';
-                badge.textContent = '🟢 Conectado';
-                document.getElementById('connected-section').style.display = 'block';
-                const info = document.getElementById('connected-info');
-                if (data.me && data.me.pushName) {
-                    info.textContent = 'Conectado como: ' + data.me.pushName;
-                }
-                document.getElementById('btn-start').style.display = 'none';
-                document.getElementById('btn-stop').style.display = '';
-                clearInterval(refreshInterval);
-            } else if (status === 'SCAN_QR_CODE') {
-                badge.className = 'tag tag-leaf';
-                badge.textContent = '📷 Aguardando QR Code';
-                document.getElementById('qr-section').style.display = 'block';
-                document.getElementById('qr-image').src = '/api/whatsapp/qr?' + Date.now();
-                document.getElementById('btn-start').style.display = 'none';
-                document.getElementById('btn-stop').style.display = '';
-                if (!refreshInterval) {
-                    refreshInterval = setInterval(checkStatus, 5000);
-                }
-            } else if (status === 'STOPPED') {
-                badge.className = 'tag tag-inactive';
-                badge.textContent = '⏹️ Parado';
-                document.getElementById('stopped-section').style.display = 'block';
-                document.getElementById('btn-start').style.display = '';
-                document.getElementById('btn-stop').style.display = 'none';
-                clearInterval(refreshInterval);
-            } else if (status === 'STARTING') {
-                badge.className = 'tag tag-leaf';
-                badge.textContent = '⏳ Iniciando...';
-                if (!refreshInterval) {
-                    refreshInterval = setInterval(checkStatus, 3000);
-                }
-            } else {
-                badge.className = 'tag tag-inactive';
-                badge.textContent = '❓ ' + status;
-                document.getElementById('error-section').style.display = 'block';
-                document.getElementById('error-msg').textContent = data.error || 'Status: ' + status;
-            }
-        })
-        .catch(() => {
-            hideAllSections();
-            document.getElementById('error-section').style.display = 'block';
-            document.getElementById('status-badge').className = 'tag tag-inactive';
-            document.getElementById('status-badge').textContent = '❌ Erro';
-        });
-}
-
-function startSession() {
-    fetch('/api/whatsapp/start', {method: 'POST'})
-        .then(() => { setTimeout(checkStatus, 2000); });
-}
-
-function stopSession() {
-    if (confirm('Tem certeza que deseja parar a sessao?')) {
-        fetch('/api/whatsapp/stop', {method: 'POST'})
-            .then(() => { setTimeout(checkStatus, 1000); });
-    }
-}
-
-// Check on load
-checkStatus();
 </script>
 {% endblock %}
