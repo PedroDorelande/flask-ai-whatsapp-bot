@@ -113,14 +113,25 @@
 </div>
 
 <script>
-// Gera o link do WAHA dinamicamente baseado no hostname atual
+// Gera o link do WAHA e webhook dinamicamente
 const host = window.location.hostname;
-const wahaUrl = 'http://' + host + ':3000/dashboard';
+const protocol = window.location.protocol;
+let wahaUrl, webhookUrl;
+
+// Se acessando pelo domínio, usa subdomínios
+if (host.includes('3wstech.com.br')) {
+    wahaUrl = protocol + '//waha.3wstech.com.br/dashboard';
+    webhookUrl = protocol + '//bot.3wstech.com.br/webhook';
+} else {
+    // Fallback: acesso por IP — usa proxy /waha/ do nginx
+    wahaUrl = protocol + '//' + host + '/waha/dashboard';
+    webhookUrl = 'http://app:5000/webhook';
+}
+
 document.getElementById('waha-link').href = wahaUrl;
 document.getElementById('waha-link').textContent = wahaUrl;
 document.getElementById('waha-btn').href = wahaUrl;
 
-const webhookUrl = 'http://' + host + ':5000/webhook';
 document.getElementById('webhook-url').textContent = webhookUrl;
 document.getElementById('webhook-box').onclick = function() { copyText(webhookUrl); };
 

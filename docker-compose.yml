@@ -7,17 +7,18 @@ services:
     restart: unless-stopped
     expose:
       - "3000"
-    ports:
-      - "3000:3000"
+    # Porta 3000 NÃO exposta externamente — acesso apenas via nginx (subdomínio waha.3wstech.com.br)
     environment:
       WAHA_API_KEY: "${WAHA_API_KEY}"
       WAHA_DASHBOARD_USERNAME: "${WAHA_DASHBOARD_USERNAME:-admin}"
       WAHA_DASHBOARD_PASSWORD: "${WAHA_DASHBOARD_PASSWORD}"
+      WAHA_DASHBOARD_ENABLED: "true"
       WHATSAPP_SWAGGER_USERNAME: "${WAHA_DASHBOARD_USERNAME:-admin}"
       WHATSAPP_SWAGGER_PASSWORD: "${WAHA_DASHBOARD_PASSWORD}"
       # Webhook configurado via API pelo Flask (configure_webhook)
       WHATSAPP_DEFAULT_ENGINE: "WEBJS"
       WHATSAPP_RESTART_ALL_SESSIONS: "true"
+      WHATSAPP_START_SESSION: "${WAHA_SESSION:-default}"
       NODE_OPTIONS: "--max-old-space-size=256"
     volumes:
       - waha-data:/app/.sessions
@@ -28,8 +29,9 @@ services:
     build: .
     container_name: typebot-app
     restart: unless-stopped
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
+    # Porta 5000 NÃO exposta externamente — acesso apenas via nginx (subdomínio bot.3wstech.com.br)
     env_file:
       - .env
     environment:
@@ -52,16 +54,30 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./static:/usr/share/nginx/static:ro
+      - certbot-webroot:/var/www/certbot:ro
+      - certbot-certs:/etc/letsencrypt:ro
     depends_on:
       - app
     networks:
       - typebot-net
 
+  certbot:
+    image: certbot/certbot
+    container_name: typebot-certbot
+    volumes:
+      - certbot-webroot:/var/www/certbot
+      - certbot-certs:/etc/letsencrypt
+    # Renovação automática a cada 12 horas
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done;'"
+
 volumes:
   waha-data:
+  certbot-webroot:
+  certbot-certs:
 
 networks:
   typebot-net:

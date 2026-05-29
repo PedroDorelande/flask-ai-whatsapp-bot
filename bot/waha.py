@@ -3,14 +3,27 @@ import os
 import sys
 import base64
 
-WAHA_URL = os.getenv('WAHA_API_URL', 'http://localhost:3000')
-WAHA_KEY = os.getenv('WAHA_API_KEY', '')
-WAHA_SESSION = os.getenv('WAHA_SESSION', 'default')
+def _url():
+    """Lê WAHA_API_URL dinamicamente (atualiza em tempo real se alterada via Configurações)."""
+    return os.getenv('WAHA_API_URL', 'http://localhost:3000')
 
-HEADERS = {
-    'X-Api-Key': WAHA_KEY,
-    'Content-Type': 'application/json'
-}
+
+def _key():
+    """Lê WAHA_API_KEY dinamicamente."""
+    return os.getenv('WAHA_API_KEY', '')
+
+
+def _session():
+    """Lê WAHA_SESSION dinamicamente."""
+    return os.getenv('WAHA_SESSION', 'default')
+
+
+def _headers():
+    """Gera headers com a API key atual."""
+    return {
+        'X-Api-Key': _key(),
+        'Content-Type': 'application/json'
+    }
 
 # Track message IDs sent by the bot so the webhook can ignore them
 _bot_sent_ids = set()
@@ -63,9 +76,9 @@ def resolve_lid(from_jid: str, payload: dict = None) -> str:
     if not numero and '@lid' in from_jid:
         try:
             resp = requests.get(
-                f'{WAHA_URL}/api/contacts',
-                headers=HEADERS,
-                params={'contactId': from_jid, 'session': WAHA_SESSION},
+                f'{_url()}/api/contacts',
+                headers=_headers(),
+                params={'contactId': from_jid, 'session': _session()},
                 timeout=5
             )
             if resp.status_code == 200:
@@ -109,10 +122,10 @@ def _track_sent(response_data):
 def send_text(chat_id: str, text: str):
     """Envia mensagem de texto simples via WAHA."""
     try:
-        resp = requests.post(f'{WAHA_URL}/api/sendText', headers=HEADERS, json={
+        resp = requests.post(f'{_url()}/api/sendText', headers=_headers(), json={
             'chatId': chat_id,
             'text': text,
-            'session': WAHA_SESSION
+            'session': _session()
         }, timeout=10)
         resp.raise_for_status()
         try:
@@ -139,9 +152,9 @@ def send_image(chat_id: str, file_path: str, caption: str = ''):
                     'gif': 'image/gif', 'webp': 'image/webp'}
         mimetype = mime_map.get(ext, 'image/jpeg')
 
-        resp = requests.post(f'{WAHA_URL}/api/sendImage', headers=HEADERS, json={
+        resp = requests.post(f'{_url()}/api/sendImage', headers=_headers(), json={
             'chatId': chat_id,
-            'session': WAHA_SESSION,
+            'session': _session(),
             'file': {
                 'mimetype': mimetype,
                 'filename': filename,
@@ -176,9 +189,9 @@ def send_file(chat_id: str, file_path: str, caption: str = ''):
                     'txt': 'text/plain', 'csv': 'text/csv'}
         mimetype = mime_map.get(ext, 'application/octet-stream')
 
-        resp = requests.post(f'{WAHA_URL}/api/sendFile', headers=HEADERS, json={
+        resp = requests.post(f'{_url()}/api/sendFile', headers=_headers(), json={
             'chatId': chat_id,
-            'session': WAHA_SESSION,
+            'session': _session(),
             'file': {
                 'mimetype': mimetype,
                 'filename': filename,
@@ -237,8 +250,8 @@ def send_menu(chat_id: str, titulo: str, opcoes: list, voltar=True):
 def get_session_status():
     """Get WAHA session status."""
     try:
-        resp = requests.get(f'{WAHA_URL}/api/sessions/{WAHA_SESSION}',
-                          headers=HEADERS, timeout=5)
+        resp = requests.get(f'{_url()}/api/sessions/{_session()}',
+                          headers=_headers(), timeout=5)
         if resp.status_code == 200:
             return resp.json()
         return {'status': 'STOPPED'}
@@ -249,8 +262,8 @@ def get_session_status():
 def get_qr_code():
     """Get QR code image bytes from WAHA."""
     try:
-        headers = {'X-Api-Key': WAHA_KEY, 'Accept': 'image/png'}
-        resp = requests.get(f'{WAHA_URL}/api/{WAHA_SESSION}/auth/qr',
+        headers = {'X-Api-Key': _key(), 'Accept': 'image/png'}
+        resp = requests.get(f'{_url()}/api/{_session()}/auth/qr',
                           headers=headers, timeout=10)
         if resp.status_code == 200:
             return resp.content, resp.headers.get('Content-Type', 'image/png')
@@ -262,8 +275,8 @@ def get_qr_code():
 def start_session():
     """Start WAHA session."""
     try:
-        resp = requests.post(f'{WAHA_URL}/api/sessions/start',
-                           headers=HEADERS, json={'name': WAHA_SESSION}, timeout=10)
+        resp = requests.post(f'{_url()}/api/sessions/start',
+                           headers=_headers(), json={'name': _session()}, timeout=10)
         return resp.status_code == 200
     except Exception:
         return False
@@ -272,8 +285,8 @@ def start_session():
 def stop_session():
     """Stop WAHA session."""
     try:
-        resp = requests.post(f'{WAHA_URL}/api/sessions/stop',
-                           headers=HEADERS, json={'name': WAHA_SESSION}, timeout=10)
+        resp = requests.post(f'{_url()}/api/sessions/stop',
+                           headers=_headers(), json={'name': _session()}, timeout=10)
         return resp.status_code == 200
     except Exception:
         return False
@@ -287,8 +300,8 @@ def configure_webhook(flask_url: str = None):
     try:
         # Tenta via PUT /api/sessions/{session}
         resp = requests.put(
-            f'{WAHA_URL}/api/sessions/{WAHA_SESSION}',
-            headers=HEADERS,
+            f'{_url()}/api/sessions/{_session()}',
+            headers=_headers(),
             json={
                 'config': {
                     'webhooks': [{
@@ -304,8 +317,8 @@ def configure_webhook(flask_url: str = None):
             return True
         # Fallback: PATCH
         resp2 = requests.patch(
-            f'{WAHA_URL}/api/sessions/{WAHA_SESSION}',
-            headers=HEADERS,
+            f'{_url()}/api/sessions/{_session()}',
+            headers=_headers(),
             json={
                 'config': {
                     'webhooks': [{
@@ -330,8 +343,8 @@ def get_messages(chat_id: str, limit: int = 30):
     """Busca últimas mensagens de um chat via WAHA."""
     try:
         resp = requests.get(
-            f'{WAHA_URL}/api/{WAHA_SESSION}/chats/{chat_id}/messages',
-            headers=HEADERS,
+            f'{_url()}/api/{_session()}/chats/{chat_id}/messages',
+            headers=_headers(),
             params={'limit': limit},
             timeout=10
         )
