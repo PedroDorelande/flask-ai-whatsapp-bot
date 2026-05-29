@@ -1,7 +1,8 @@
 #!/bin/bash
 # =====================================================
 # Script para configurar SSL com Let's Encrypt
-# Execute UMA VEZ após configurar os DNS
+# Domínios: movidachat.duckdns.org + movidawaha.duckdns.org
+# Execute UMA VEZ após os DNS estarem apontando para a VPS
 # =====================================================
 
 set -e
@@ -13,8 +14,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-DOMAINS="bot.3wstech.com.br waha.3wstech.com.br"
-PRIMARY_DOMAIN="bot.3wstech.com.br"
+DOMAINS="movidachat.duckdns.org movidawaha.duckdns.org"
+PRIMARY_DOMAIN="movidachat.duckdns.org"
 EMAIL="${1:-}"
 
 echo -e "${BLUE}========================================${NC}"
@@ -43,7 +44,7 @@ for domain in $DOMAINS; do
         echo -e "  ✅ ${domain} → ${IP}"
     else
         echo -e "  ${RED}❌ ${domain} — DNS NÃO ENCONTRADO!${NC}"
-        echo -e "  ${YELLOW}   Configure o registro A no painel do seu domínio primeiro.${NC}"
+        echo -e "  ${YELLOW}   Verifique no painel do DuckDNS se o domínio está configurado.${NC}"
         echo ""
         echo -e "${RED}Abortando. Configure os DNS e tente novamente.${NC}"
         exit 1
@@ -104,7 +105,7 @@ docker compose run --rm certbot certonly \
     --webroot \
     -w /var/www/certbot \
     -d "$PRIMARY_DOMAIN" \
-    -d "waha.3wstech.com.br" \
+    -d "movidawaha.duckdns.org" \
     --email "$EMAIL" \
     --agree-tos \
     --no-eff-email \
@@ -130,8 +131,8 @@ echo -e "${BLUE}========================================${NC}"
 echo -e "${GREEN}  ✅ SSL CONFIGURADO COM SUCESSO!       ${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
-echo -e "  🤖 Bot:  ${GREEN}https://bot.3wstech.com.br${NC}"
-echo -e "  📱 WAHA: ${GREEN}https://waha.3wstech.com.br/dashboard${NC}"
+echo -e "  🤖 Painel:  ${GREEN}https://movidachat.duckdns.org${NC}"
+echo -e "  📱 WAHA:    ${GREEN}https://movidawaha.duckdns.org/dashboard${NC}"
 echo ""
 echo -e "  ${YELLOW}Os certificados serão renovados automaticamente.${NC}"
 echo ""

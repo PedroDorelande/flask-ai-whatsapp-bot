@@ -118,10 +118,10 @@ const host = window.location.hostname;
 const protocol = window.location.protocol;
 let wahaUrl, webhookUrl;
 
-// Se acessando pelo domínio, usa subdomínios
-if (host.includes('3wstech.com.br')) {
-    wahaUrl = protocol + '//waha.3wstech.com.br/dashboard';
-    webhookUrl = protocol + '//bot.3wstech.com.br/webhook';
+// Se acessando pelo domínio, usa os domínios DuckDNS
+if (host.includes('duckdns.org')) {
+    wahaUrl = protocol + '//movidawaha.duckdns.org/dashboard';
+    webhookUrl = 'http://app:5000/webhook';
 } else {
     // Fallback: acesso por IP — usa proxy /waha/ do nginx
     wahaUrl = protocol + '//' + host + '/waha/dashboard';
