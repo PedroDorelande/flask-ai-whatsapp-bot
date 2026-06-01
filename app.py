@@ -932,7 +932,7 @@ def arquivos():
                     'tipo': tipo,
                     'tamanho': tamanho,
                     'usado_em': usado_em,
-                    'link': f'{base_url}/static/uploads/{fname}'
+                    'link': f'{request.host_url}static/uploads/{fname}'
                 })
 
     return render_template('arquivos.html', arquivos=files)

@@ -8,70 +8,21 @@ from bot import queue as fila
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'uploads')
 
 
-def _read_env_domain():
-    """Lê FLASK_PUBLIC_DOMAIN e FLASK_PUBLIC_URL diretamente do arquivo .env.
-    
-    Necessário porque dentro do webhook (chamado pelo WAHA via Docker),
-    os.getenv pode não ter o valor atualizado e flask_request.host_url
-    retorna o IP interno do Docker (http://app:5000).
-    """
-    for env_path in ['/app/.env', os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')]:
-        if os.path.exists(env_path):
-            try:
-                with open(env_path, 'r', encoding='utf-8') as f:
-                    domain = ''
-                    public_url = ''
-                    for line in f:
-                        line = line.strip()
-                        if line.startswith('FLASK_PUBLIC_DOMAIN='):
-                            domain = line.split('=', 1)[1].strip()
-                        elif line.startswith('FLASK_PUBLIC_URL='):
-                            public_url = line.split('=', 1)[1].strip()
-                    return domain, public_url
-            except Exception:
-                pass
-    return '', ''
-
-
 def _get_base_url():
-    """Pega a URL pública para montar links de download enviados aos alunos.
-    
-    Ordem de prioridade:
-    1. FLASK_PUBLIC_DOMAIN do os.environ
-    2. FLASK_PUBLIC_DOMAIN lido direto do arquivo .env (fallback robusto)
-    3. FLASK_PUBLIC_URL (se não for URL interna do Docker)
-    4. flask request host (funciona quando acessa pelo navegador)
-    5. localhost (último recurso)
-    """
-    # 1. Tenta do ambiente
-    domain = os.getenv('FLASK_PUBLIC_DOMAIN', '').strip()
-    if domain:
-        return domain.rstrip('/')
-
-    # 2. Lê direto do arquivo .env (garante que funciona no webhook)
-    file_domain, file_public_url = _read_env_domain()
-    if file_domain:
-        return file_domain.rstrip('/')
-
-    # 3. FLASK_PUBLIC_URL do ambiente (se não for interna)
-    public_url = os.getenv('FLASK_PUBLIC_URL', '').strip()
+    """Pega a URL pública do Flask para montar links de download."""
+    # Prioridade 1: domínio público configurado (para links enviados aos alunos)
+    public = os.getenv('FLASK_PUBLIC_DOMAIN', '')
+    if public:
+        return public.rstrip('/')
+    # Prioridade 2: URL pública (campo da tela de configurações)
+    public_url = os.getenv('FLASK_PUBLIC_URL', '')
     if public_url and public_url not in ('http://app:5000', 'http://localhost:5000'):
         return public_url.rstrip('/')
-
-    # 3b. FLASK_PUBLIC_URL do arquivo .env
-    if file_public_url and file_public_url not in ('http://app:5000', 'http://localhost:5000'):
-        return file_public_url.rstrip('/')
-
-    # 4. Request context (funciona quando acesso é pelo navegador)
+    # Prioridade 3: request context (quando chamado de dentro de uma rota web)
     try:
-        host = flask_request.host_url.rstrip('/')
-        # Não retorna URLs internas do Docker
-        if host not in ('http://app:5000', 'http://localhost:5000'):
-            return host
+        return flask_request.host_url.rstrip('/')
     except Exception:
-        pass
-
-    return 'http://localhost:5000'
+        return 'http://localhost:5000'
 
 
 
