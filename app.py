@@ -212,10 +212,12 @@ def menu_edit(item_id):
 def menu_delete(item_id):
     item = MenuItem.query.get_or_404(item_id)
     parent_id = item.parent_id
+    # Remove FAQs vinculadas a este item e seus filhos
+    _unlink_knowledge_from_tree(item)
     # Deleta filhos recursivamente
     _delete_menu_tree(item)
     db.session.commit()
-    flash('Menu excluido!', 'success')
+    flash('Menu excluído e FAQs associadas removidas!', 'success')
     if parent_id:
         return redirect(url_for('menus_sub', parent_id=parent_id))
     return redirect(url_for('menus'))
@@ -226,6 +228,18 @@ def _delete_menu_tree(item):
     for child in item.filhos.all():
         _delete_menu_tree(child)
     db.session.delete(item)
+
+
+def _unlink_knowledge_from_tree(item):
+    """Remove FAQs vinculadas a um item de menu e seus filhos recursivamente."""
+    for child in item.filhos.all():
+        _unlink_knowledge_from_tree(child)
+    # Busca FAQs vinculadas a este item de menu
+    linked_faqs = Knowledge.query.filter_by(menu_item_id=item.id).all()
+    for faq in linked_faqs:
+        print(f'[MENU→FAQ] Removendo FAQ "{faq.pergunta[:50]}..." (id={faq.id}) '
+              f'vinculada ao menu "{item.titulo}"', flush=True)
+        db.session.delete(faq)
 
 
 @app.route('/menus/toggle/<int:item_id>', methods=['POST'])
@@ -287,6 +301,8 @@ def _faq_to_menu(faq):
     # Verifica se já existe um item com o mesmo título nessa categoria
     existing = MenuItem.query.filter_by(parent_id=menu_cat.id, titulo=titulo).first()
     if existing:
+        # Vincula a FAQ ao item existente
+        faq.menu_item_id = existing.id
         print(f'[FAQ→MENU] Item já existe: "{titulo}" na categoria "{categoria}"',
               flush=True)
         return menu_cat.titulo  # Já existe, não duplica
@@ -304,6 +320,8 @@ def _faq_to_menu(faq):
     )
     db.session.add(new_item)
     db.session.flush()
+    # Vincula a FAQ ao novo item de menu
+    faq.menu_item_id = new_item.id
     print(f'[FAQ→MENU] Item criado: "{titulo}" → categoria "{categoria}" '
           f'(menu_id={new_item.id}, pos={new_item.posicao})', flush=True)
     return menu_cat.titulo
@@ -317,6 +335,24 @@ def knowledge_approve(faq_id):
     db.session.commit()
     flash(f'FAQ aprovada e adicionada ao menu "{cat}"!', 'success')
     return redirect(request.referrer or url_for('knowledge'))
+
+
+def _remove_faq_menu(faq):
+    """Remove o item de menu vinculado a uma FAQ (se existir)."""
+    if faq.menu_item_id:
+        menu_item = MenuItem.query.get(faq.menu_item_id)
+        if menu_item:
+            parent = menu_item.pai
+            _delete_menu_tree(menu_item)
+            db.session.flush()  # Garante que a deleção reflete antes de checar o pai
+            print(f'[FAQ→MENU] Removido menu "{menu_item.titulo}" (id={menu_item.id})',
+                  flush=True)
+            # Se a categoria ficou vazia, remove ela também
+            if parent and not parent.has_filhos and parent.resposta is None:
+                db.session.delete(parent)
+                print(f'[FAQ→MENU] Categoria vazia removida: "{parent.titulo}"',
+                      flush=True)
+        faq.menu_item_id = None
 
 
 @app.route('/knowledge/approve_all', methods=['POST'])
@@ -337,6 +373,7 @@ def knowledge_reject_all():
     pendentes = Knowledge.query.filter_by(status='Pendente').all()
     count = 0
     for faq in pendentes:
+        _remove_faq_menu(faq)
         faq.status = 'Rejeitado'
         count += 1
     db.session.commit()
@@ -347,9 +384,13 @@ def knowledge_reject_all():
 @app.route('/knowledge/delete_all/<status>', methods=['POST'])
 def knowledge_delete_all(status):
     if status == 'todos':
-        count = Knowledge.query.delete()
+        faqs = Knowledge.query.all()
     else:
-        count = Knowledge.query.filter_by(status=status).delete()
+        faqs = Knowledge.query.filter_by(status=status).all()
+    count = len(faqs)
+    for faq in faqs:
+        _remove_faq_menu(faq)
+        db.session.delete(faq)
     db.session.commit()
     flash(f'{count} FAQs apagadas!', 'success')
     return redirect(url_for('knowledge'))
@@ -358,17 +399,20 @@ def knowledge_delete_all(status):
 @app.route('/knowledge/reject/<int:faq_id>', methods=['POST'])
 def knowledge_reject(faq_id):
     faq = Knowledge.query.get_or_404(faq_id)
+    _remove_faq_menu(faq)
     faq.status = 'Rejeitado'
     db.session.commit()
+    flash('FAQ rejeitada e removida do menu!', 'success')
     return redirect(request.referrer or url_for('knowledge'))
 
 
 @app.route('/knowledge/delete/<int:faq_id>', methods=['POST'])
 def knowledge_delete(faq_id):
     faq = Knowledge.query.get_or_404(faq_id)
+    _remove_faq_menu(faq)
     db.session.delete(faq)
     db.session.commit()
-    flash('FAQ excluida!', 'success')
+    flash('FAQ excluída e removida do menu!', 'success')
     return redirect(request.referrer or url_for('knowledge'))
 
 
@@ -559,6 +603,7 @@ def _write_env_file(config):
         f'FLASK_SECRET_KEY={config.get("FLASK_SECRET_KEY", "dev-secret")}',
         f'FLASK_DEBUG={config.get("FLASK_DEBUG", "false")}',
         f'FLASK_PUBLIC_URL={config.get("FLASK_PUBLIC_URL", "")}',
+        f'FLASK_PUBLIC_DOMAIN={config.get("FLASK_PUBLIC_DOMAIN", "")}',
         '',
     ]
     with open(env_path, 'w', encoding='utf-8') as f:
@@ -585,7 +630,8 @@ def configuracoes_salvar():
         campos_permitidos = [
             'OPENAI_API_KEY', 'WAHA_API_KEY', 'WAHA_SESSION',
             'WAHA_DASHBOARD_USERNAME', 'WAHA_DASHBOARD_PASSWORD',
-            'WAHA_API_URL', 'FLASK_SECRET_KEY', 'FLASK_DEBUG', 'FLASK_PUBLIC_URL'
+            'WAHA_API_URL', 'FLASK_SECRET_KEY', 'FLASK_DEBUG', 'FLASK_PUBLIC_URL',
+            'FLASK_PUBLIC_DOMAIN'
         ]
         for campo in campos_permitidos:
             if campo in data:
@@ -746,6 +792,9 @@ def fila_config():
         msg_cancel_padrao = fila_module.MENSAGEM_CANCELAMENTO_PADRAO
         mensagem_cancelamento = BotConfig.get('mensagem_cancelamento', msg_cancel_padrao)
 
+        msg_posicao_padrao = fila_module.MENSAGEM_POSICAO_PADRAO
+        mensagem_posicao = BotConfig.get('mensagem_posicao', msg_posicao_padrao)
+
         perguntas = fila_module.get_perguntas()
         horarios = fila_module.get_horarios_semana()
         dias_semana = fila_module.DIAS_SEMANA
@@ -754,6 +803,7 @@ def fila_config():
         return render_template('fila_config.html',
             mensagem_chamada=mensagem_chamada,
             mensagem_entrada=mensagem_entrada,
+            mensagem_posicao=mensagem_posicao,
             mensagem_termino=mensagem_termino,
             mensagem_cancelamento=mensagem_cancelamento,
             perguntas=perguntas,
@@ -771,6 +821,10 @@ def fila_config():
     if msg_entrada:
         BotConfig.set('mensagem_entrada', msg_entrada)
         saved.append('entrada')
+    msg_posicao = request.form.get('mensagem_posicao', '').strip()
+    if msg_posicao:
+        BotConfig.set('mensagem_posicao', msg_posicao)
+        saved.append('posição')
     msg_termino = request.form.get('mensagem_termino', '').strip()
     if msg_termino:
         BotConfig.set('mensagem_termino', msg_termino)

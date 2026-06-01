@@ -14,11 +14,15 @@ def _get_base_url():
     public = os.getenv('FLASK_PUBLIC_DOMAIN', '')
     if public:
         return public.rstrip('/')
-    # Prioridade 2: request context (quando chamado de dentro de uma rota web)
+    # Prioridade 2: URL pública (campo da tela de configurações)
+    public_url = os.getenv('FLASK_PUBLIC_URL', '')
+    if public_url and public_url not in ('http://app:5000', 'http://localhost:5000'):
+        return public_url.rstrip('/')
+    # Prioridade 3: request context (quando chamado de dentro de uma rota web)
     try:
         return flask_request.host_url.rstrip('/')
     except Exception:
-        return os.getenv('FLASK_PUBLIC_URL', 'http://localhost:5000')
+        return 'http://localhost:5000'
 
 
 

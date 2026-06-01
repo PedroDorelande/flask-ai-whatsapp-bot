@@ -73,6 +73,8 @@ class Knowledge(db.Model):
     origem = db.Column(db.String(255), nullable=True)
     status = db.Column(db.String(20), default='Pendente')  # Pendente | Aprovado | Rejeitado
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    # Vínculo com MenuItem — rastreia qual item de menu foi criado a partir desta FAQ
+    menu_item_id = db.Column(db.Integer, db.ForeignKey('menu_items.id'), nullable=True)
 
 
 class SessionControl(db.Model):
@@ -274,8 +276,54 @@ def init_db(app):
     db.init_app(app)
     with app.app_context():
         db.create_all()
+        # Migração: adiciona coluna menu_item_id se não existir
+        _migrate_knowledge_menu_link()
         if MenuItem.query.count() == 0:
             _seed_menus()
+
+
+def _migrate_knowledge_menu_link():
+    """Adiciona coluna menu_item_id à tabela conhecimento se não existir."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+    columns = [col['name'] for col in inspector.get_columns('conhecimento')]
+    if 'menu_item_id' not in columns:
+        db.session.execute(text(
+            'ALTER TABLE conhecimento ADD COLUMN menu_item_id INTEGER '
+            'REFERENCES menu_items(id)'
+        ))
+        db.session.commit()
+        print('[MIGRAÇÃO] Coluna menu_item_id adicionada à tabela conhecimento',
+              flush=True)
+
+        # Vincula FAQs aprovadas existentes aos seus menus correspondentes
+        _link_existing_approved_faqs()
+
+
+def _link_existing_approved_faqs():
+    """Vincula FAQs aprovadas existentes aos itens de menu correspondentes."""
+    from models.database import Knowledge, MenuItem
+    approved = Knowledge.query.filter_by(status='Aprovado').all()
+    linked = 0
+    for faq in approved:
+        titulo = faq.pergunta.strip()
+        if len(titulo) > 100:
+            titulo = titulo[:97] + '...'
+        categoria = (faq.categoria or 'Geral').strip()
+        # Busca a categoria no menu raiz
+        menu_cat = MenuItem.query.filter_by(parent_id=None, titulo=categoria).first()
+        if menu_cat:
+            # Busca o item correspondente
+            menu_item = MenuItem.query.filter_by(
+                parent_id=menu_cat.id, titulo=titulo
+            ).first()
+            if menu_item:
+                faq.menu_item_id = menu_item.id
+                linked += 1
+    if linked:
+        db.session.commit()
+        print(f'[MIGRAÇÃO] {linked} FAQs aprovadas vinculadas aos menus existentes',
+              flush=True)
 
 
 def _seed_menus():

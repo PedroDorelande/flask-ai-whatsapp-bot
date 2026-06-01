@@ -95,6 +95,12 @@ MENSAGEM_ENTRADA_PADRAO = (
     'Envie *sair* para sair da fila.'
 )
 
+MENSAGEM_POSICAO_PADRAO = (
+    'Sua posicao na fila: *{posicao}* de {total}\n\n'
+    '*Horario de atendimento:* {horario}\n\n'
+    'Aguarde, voce sera notificado quando for sua vez!'
+)
+
 MENSAGEM_TERMINO_PADRAO = (
     'Atendimento finalizado! Obrigado.\n\n'
     'Envie *menu* se precisar de mais alguma coisa.'
@@ -111,6 +117,12 @@ def _get_mensagem_termino():
     """Retorna a mensagem de término de atendimento customizada."""
     db.session.expire_all()
     return BotConfig.get('mensagem_termino', MENSAGEM_TERMINO_PADRAO)
+
+
+def _get_mensagem_posicao():
+    """Retorna a mensagem de consulta de posição customizada."""
+    db.session.expire_all()
+    return BotConfig.get('mensagem_posicao', MENSAGEM_POSICAO_PADRAO)
 
 
 MENSAGEM_CANCELAMENTO_PADRAO = (
@@ -249,10 +261,15 @@ def check_position(chat_id: str):
     else:
         total = QueueEntry.total_esperando()
         horario = _get_horario_atendimento()
-        waha.send_text(chat_id,
-            f'Sua posicao na fila: *{pos}* de {total}\n\n'
-            f'*Horario de atendimento:* {horario}\n\n'
-            f'Aguarde, voce sera notificado quando for sua vez!')
+        msg_template = _get_mensagem_posicao()
+        try:
+            msg = msg_template.format(
+                posicao=pos, total=total, horario=horario)
+        except Exception:
+            msg = msg_template.replace('{posicao}', str(pos))\
+                .replace('{total}', str(total))\
+                .replace('{horario}', horario)
+        waha.send_text(chat_id, msg)
 
 
 def leave_queue(chat_id: str):

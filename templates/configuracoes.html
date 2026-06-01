@@ -92,12 +92,19 @@
                     <p style="margin-top:0.35rem; font-size:0.8rem; color:var(--text-muted);">Usada para segurança das sessões web</p>
                 </div>
                 <div>
-                    <label style="display:block; font-weight:600; margin-bottom:0.5rem; color:var(--text);">URL Pública</label>
+                    <label style="display:block; font-weight:600; margin-bottom:0.5rem; color:var(--text);">URL Pública (interna)</label>
                     <input type="text" name="FLASK_PUBLIC_URL" value="{{ config.FLASK_PUBLIC_URL or '' }}"
-                        placeholder="http://143.95.210.62"
+                        placeholder="http://app:5000"
                         style="width:100%; padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:monospace; font-size:0.9rem;">
-                    <p style="margin-top:0.35rem; font-size:0.8rem; color:var(--text-muted);">URL do servidor (usada para webhooks)</p>
+                    <p style="margin-top:0.35rem; font-size:0.8rem; color:var(--text-muted);">URL interna do servidor (webhooks). No Docker: http://app:5000</p>
                 </div>
+            </div>
+            <div style="margin-top:1.25rem;">
+                <label style="display:block; font-weight:600; margin-bottom:0.5rem; color:var(--text);">🌐 Domínio Público (links para alunos)</label>
+                <input type="text" name="FLASK_PUBLIC_DOMAIN" value="{{ config.FLASK_PUBLIC_DOMAIN or '' }}"
+                    placeholder="https://meudominio.com.br"
+                    style="width:100%; padding:0.75rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-family:monospace; font-size:0.9rem;">
+                <p style="margin-top:0.35rem; font-size:0.8rem; color:var(--text-muted);">Domínio usado nos links de arquivos enviados para os alunos via WhatsApp. Ex: https://movidachat.duckdns.org</p>
             </div>
             <div style="margin-top:1.25rem;">
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem;">

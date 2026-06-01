@@ -232,6 +232,24 @@
         <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
             <div style="flex:1;">
                 <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
+                    📍 Mensagem quando aluno consulta posição na fila:
+                </label>
+                <textarea name="mensagem_posicao" rows="2" id="ta-posicao"
+                    style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_posicao }}</textarea>
+                <div class="var-buttons">
+                    <button type="button" class="var-btn" onclick="insertVar('ta-posicao', '{posicao}')">📍 {posicao}</button>
+                    <button type="button" class="var-btn" onclick="insertVar('ta-posicao', '{total}')">📊 {total}</button>
+                    <button type="button" class="var-btn" onclick="insertVar('ta-posicao', '{horario}')">🕐 {horario}</button>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
+        </form>
+    </div>
+
+    <div class="config-section">
+        <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
+            <div style="flex:1;">
+                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
                     ✅ Mensagem de término de atendimento:
                 </label>
                 <textarea name="mensagem_termino" rows="2" id="ta-termino"
