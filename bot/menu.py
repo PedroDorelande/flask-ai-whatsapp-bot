@@ -8,21 +8,61 @@ from bot import queue as fila
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'uploads')
 
 
+def _read_env_domain():
+    """Lê FLASK_PUBLIC_DOMAIN direto do arquivo .env como fallback.
+
+    Necessário porque dentro do webhook (WAHA -> Flask via Docker),
+    os.getenv pode não ter o valor e flask_request.host_url retorna
+    a URL interna do Docker (http://app:5000).
+    """
+    for env_path in ['/app/.env', os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')]:
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, 'r', encoding='utf-8') as f:
+                    domain = ''
+                    public_url = ''
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith('FLASK_PUBLIC_DOMAIN='):
+                            domain = line.split('=', 1)[1].strip()
+                        elif line.startswith('FLASK_PUBLIC_URL='):
+                            public_url = line.split('=', 1)[1].strip()
+                    return domain, public_url
+            except Exception:
+                pass
+    return '', ''
+
+
 def _get_base_url():
-    """Pega a URL pública do Flask para montar links de download."""
-    # Prioridade 1: domínio público configurado (para links enviados aos alunos)
-    public = os.getenv('FLASK_PUBLIC_DOMAIN', '')
-    if public:
-        return public.rstrip('/')
-    # Prioridade 2: URL pública (campo da tela de configurações)
-    public_url = os.getenv('FLASK_PUBLIC_URL', '')
+    """Pega a URL pública para montar links de arquivos enviados aos alunos."""
+    # 1. FLASK_PUBLIC_DOMAIN do ambiente
+    domain = os.getenv('FLASK_PUBLIC_DOMAIN', '').strip()
+    if domain:
+        return domain.rstrip('/')
+
+    # 2. Lê direto do arquivo .env (fallback para contexto de webhook)
+    file_domain, file_url = _read_env_domain()
+    if file_domain:
+        return file_domain.rstrip('/')
+
+    # 3. FLASK_PUBLIC_URL do ambiente (se não for URL interna)
+    public_url = os.getenv('FLASK_PUBLIC_URL', '').strip()
     if public_url and public_url not in ('http://app:5000', 'http://localhost:5000'):
         return public_url.rstrip('/')
-    # Prioridade 3: request context (quando chamado de dentro de uma rota web)
+
+    # 3b. FLASK_PUBLIC_URL do arquivo .env
+    if file_url and file_url not in ('http://app:5000', 'http://localhost:5000'):
+        return file_url.rstrip('/')
+
+    # 4. Request context (funciona pelo navegador)
     try:
-        return flask_request.host_url.rstrip('/')
+        host = flask_request.host_url.rstrip('/')
+        if host not in ('http://app:5000', 'http://localhost:5000'):
+            return host
     except Exception:
-        return 'http://localhost:5000'
+        pass
+
+    return 'http://localhost:5000'
 
 
 
