@@ -133,17 +133,21 @@ def dashboard():
 # =====================================================
 @app.route('/menus')
 def menus():
+    from bot.menu import _get_base_url
     items = MenuItem.query.filter_by(parent_id=None).order_by(MenuItem.posicao).all()
     return render_template('menus.html', items=items, parent=None,
-        arquivos_disponiveis=_get_arquivos_disponiveis())
+        arquivos_disponiveis=_get_arquivos_disponiveis(),
+        base_url=_get_base_url())
 
 
 @app.route('/menus/<int:parent_id>')
 def menus_sub(parent_id):
+    from bot.menu import _get_base_url
     parent = MenuItem.query.get_or_404(parent_id)
     items = parent.filhos.order_by(MenuItem.posicao).all()
     return render_template('menus.html', items=items, parent=parent,
-        arquivos_disponiveis=_get_arquivos_disponiveis())
+        arquivos_disponiveis=_get_arquivos_disponiveis(),
+        base_url=_get_base_url())
 
 
 @app.route('/menus/add', methods=['POST'])
@@ -900,6 +904,8 @@ def fila_horarios():
 def arquivos():
     """Lista todos os arquivos no upload folder."""
     from models.database import UploadedFile
+    from bot.menu import _get_base_url
+    base_url = _get_base_url()
     files = []
     if os.path.exists(UPLOAD_FOLDER):
         for fname in sorted(os.listdir(UPLOAD_FOLDER)):
@@ -932,7 +938,7 @@ def arquivos():
                     'tipo': tipo,
                     'tamanho': tamanho,
                     'usado_em': usado_em,
-                    'link': f'{request.host_url}static/uploads/{fname}'
+                    'link': f'{base_url}/static/uploads/{fname}'
                 })
 
     return render_template('arquivos.html', arquivos=files)

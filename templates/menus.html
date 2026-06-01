@@ -59,6 +59,9 @@
                     {% endif %}
                     {% if item.tem_arquivo %}
                     <span class="tag tag-leaf">📎 {{ item.arquivo_nome }}</span>
+                    <div style="margin-top:2px;">
+                        <code style="font-size:10px; word-break:break-all; color:var(--text-muted);">{{ base_url }}/static/uploads/{{ item.arquivo_path }}</code>
+                    </div>
                     {% endif %}
                     {% if not item.ativo %}
                     <span class="tag tag-inactive">Inativo</span>
@@ -89,7 +92,7 @@
                 <textarea name="resposta" placeholder="Resposta (deixe vazio se tiver sub-menus)">{{ item.resposta or '' }}</textarea>
                 <div class="form-group">
                     <label>Arquivo anexo (selecione da aba Arquivos)</label>
-                    <select name="arquivo_path" style="width:100%; padding:10px 14px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-family:inherit; font-size:14px;">
+                    <select name="arquivo_path" onchange="updateLinkPreview(this, 'link-preview-edit-{{ item.id }}')" style="width:100%; padding:10px 14px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-family:inherit; font-size:14px;">
                         <option value="">Nenhum arquivo</option>
                         {% for arq in arquivos_disponiveis %}
                         <option value="{{ arq.path }}" {% if item.arquivo_path == arq.path %}selected{% endif %}>
@@ -97,6 +100,10 @@
                         </option>
                         {% endfor %}
                     </select>
+                    <div id="link-preview-edit-{{ item.id }}" style="margin-top:6px; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:11px; word-break:break-all; {{ 'display:none;' if not item.arquivo_path else '' }}">
+                        🔗 <strong>Link que será enviado ao aluno:</strong><br>
+                        <code style="color:var(--primary);">{{ base_url }}/static/uploads/{{ item.arquivo_path or '' }}</code>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary">💾 Salvar</button>
             </form>
@@ -126,21 +133,40 @@
         </div>
         <div class="form-group">
             <label>Arquivo anexo (selecione da aba Arquivos) — opcional</label>
-            <select name="arquivo_path" style="width:100%; padding:10px 14px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-family:inherit; font-size:14px;">
+            <select name="arquivo_path" onchange="updateLinkPreview(this, 'link-preview-add')" style="width:100%; padding:10px 14px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-family:inherit; font-size:14px;">
                 <option value="">Nenhum arquivo</option>
                 {% for arq in arquivos_disponiveis %}
                 <option value="{{ arq.path }}">{{ arq.emoji }} {{ arq.nome }} ({{ arq.tamanho }})</option>
                 {% endfor %}
             </select>
+            <div id="link-preview-add" style="margin-top:6px; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:11px; word-break:break-all; display:none;">
+                🔗 <strong>Link que será enviado ao aluno:</strong><br>
+                <code style="color:var(--primary);"></code>
+            </div>
         </div>
         <button type="submit" class="btn btn-primary">➕ Adicionar</button>
     </form>
 </div>
 
 <script>
+const FILE_BASE_URL = '{{ base_url }}/static/uploads/';
+
 function toggleEdit(id) {
     const el = document.getElementById('edit-' + id);
     el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function updateLinkPreview(selectEl, previewId) {
+    const preview = document.getElementById(previewId);
+    if (!preview) return;
+    const val = selectEl.value;
+    if (val) {
+        const fullLink = FILE_BASE_URL + val;
+        preview.style.display = 'block';
+        preview.querySelector('code').textContent = fullLink;
+    } else {
+        preview.style.display = 'none';
+    }
 }
 
 // ===== Drag & Drop Reorder =====
