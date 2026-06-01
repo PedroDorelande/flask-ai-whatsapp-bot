@@ -265,19 +265,30 @@ def knowledge():
 def _faq_to_menu(faq):
     """Transforma FAQ aprovada em item de menu automaticamente."""
     categoria = (faq.categoria or 'Geral').strip()
+    if not categoria:
+        categoria = 'Geral'
+
+    # Truncar título se muito longo (WhatsApp fica ilegível com textos enormes)
+    titulo = faq.pergunta.strip()
+    if len(titulo) > 100:
+        titulo = titulo[:97] + '...'
 
     # Busca ou cria categoria como menu raiz
     menu_cat = MenuItem.query.filter_by(parent_id=None, titulo=categoria).first()
     if not menu_cat:
         max_pos = db.session.query(db.func.max(MenuItem.posicao))\
             .filter_by(parent_id=None).scalar() or 0
-        menu_cat = MenuItem(titulo=categoria, posicao=max_pos + 1)
+        menu_cat = MenuItem(titulo=categoria, posicao=max_pos + 1, ativo=True)
         db.session.add(menu_cat)
         db.session.flush()
+        print(f'[FAQ→MENU] Categoria criada: "{categoria}" (id={menu_cat.id})',
+              flush=True)
 
     # Verifica se já existe um item com o mesmo título nessa categoria
-    existing = MenuItem.query.filter_by(parent_id=menu_cat.id, titulo=faq.pergunta).first()
+    existing = MenuItem.query.filter_by(parent_id=menu_cat.id, titulo=titulo).first()
     if existing:
+        print(f'[FAQ→MENU] Item já existe: "{titulo}" na categoria "{categoria}"',
+              flush=True)
         return menu_cat.titulo  # Já existe, não duplica
 
     # Calcula posição
@@ -287,10 +298,14 @@ def _faq_to_menu(faq):
     new_item = MenuItem(
         parent_id=menu_cat.id,
         posicao=max_pos + 1,
-        titulo=faq.pergunta,
-        resposta=faq.resposta
+        titulo=titulo,
+        resposta=faq.resposta,
+        ativo=True
     )
     db.session.add(new_item)
+    db.session.flush()
+    print(f'[FAQ→MENU] Item criado: "{titulo}" → categoria "{categoria}" '
+          f'(menu_id={new_item.id}, pos={new_item.posicao})', flush=True)
     return menu_cat.titulo
 
 
@@ -732,13 +747,19 @@ def fila_config():
         mensagem_cancelamento = BotConfig.get('mensagem_cancelamento', msg_cancel_padrao)
 
         perguntas = fila_module.get_perguntas()
+        horarios = fila_module.get_horarios_semana()
+        dias_semana = fila_module.DIAS_SEMANA
+        dias_semana_display = fila_module.DIAS_SEMANA_DISPLAY
 
         return render_template('fila_config.html',
             mensagem_chamada=mensagem_chamada,
             mensagem_entrada=mensagem_entrada,
             mensagem_termino=mensagem_termino,
             mensagem_cancelamento=mensagem_cancelamento,
-            perguntas=perguntas)
+            perguntas=perguntas,
+            horarios=horarios,
+            dias_semana=dias_semana,
+            dias_semana_display=dias_semana_display)
 
     # POST — salva configurações
     saved = []
@@ -797,6 +818,24 @@ def fila_perguntas():
             perguntas.append({'campo': campo, 'pergunta': texto})
     fila_module.set_perguntas(perguntas)
     flash(f'{len(perguntas)} perguntas salvas!', 'success')
+    return redirect(url_for('fila_config'))
+
+
+@app.route('/fila/horarios', methods=['POST'])
+def fila_horarios():
+    """Salva horários de atendimento por dia da semana."""
+    horarios = {}
+    for dia in fila_module.DIAS_SEMANA:
+        ativo = request.form.get(f'ativo_{dia}') == 'on'
+        inicio = request.form.get(f'inicio_{dia}', '').strip()
+        fim = request.form.get(f'fim_{dia}', '').strip()
+        horarios[dia] = {
+            'ativo': ativo,
+            'inicio': inicio if ativo else '',
+            'fim': fim if ativo else ''
+        }
+    fila_module.set_horarios_semana(horarios)
+    flash('Horários de atendimento atualizados!', 'success')
     return redirect(url_for('fila_config'))
 
 

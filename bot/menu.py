@@ -9,11 +9,17 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static
 
 
 def _get_base_url():
-    """Pega a URL base do Flask para montar links de download."""
+    """Pega a URL pública do Flask para montar links de download."""
+    # Prioridade 1: domínio público configurado (para links enviados aos alunos)
+    public = os.getenv('FLASK_PUBLIC_DOMAIN', '')
+    if public:
+        return public.rstrip('/')
+    # Prioridade 2: request context (quando chamado de dentro de uma rota web)
     try:
         return flask_request.host_url.rstrip('/')
     except Exception:
         return os.getenv('FLASK_PUBLIC_URL', 'http://localhost:5000')
+
 
 
 def show_menu(chat_id: str, parent_id: int | None = None):

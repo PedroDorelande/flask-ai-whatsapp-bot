@@ -33,27 +33,177 @@
         padding: 0 4px;
     }
     .drag-handle:active { cursor: grabbing; }
+
+    /* Botões de variáveis */
+    .var-buttons { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+    .var-btn {
+        padding: 2px 8px;
+        font-size: 11px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        opacity: 0.8;
+        transition: opacity 0.15s, transform 0.1s;
+    }
+    .var-btn:hover { opacity: 1; transform: scale(1.05); }
+
+    /* Horários da semana */
+    .horario-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .horario-table th {
+        text-align: left;
+        padding: 8px 10px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        border-bottom: 1px solid var(--border);
+    }
+    .horario-table td {
+        padding: 6px 10px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: middle;
+    }
+    .horario-table tr:last-child td { border-bottom: none; }
+    .dia-label {
+        font-weight: 500;
+        font-size: 13px;
+        min-width: 80px;
+    }
+    .horario-input {
+        width: 80px;
+        padding: 4px 8px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text);
+        font-size: 12px;
+        text-align: center;
+    }
+    .horario-input:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+    /* Toggle switch */
+    .toggle-switch {
+        position: relative;
+        width: 36px;
+        height: 20px;
+    }
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: var(--border);
+        border-radius: 20px;
+        transition: 0.2s;
+    }
+    .toggle-slider:before {
+        content: "";
+        position: absolute;
+        height: 14px; width: 14px;
+        left: 3px; bottom: 3px;
+        background: white;
+        border-radius: 50%;
+        transition: 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+        background: var(--success, #22c55e);
+    }
+    .toggle-switch input:checked + .toggle-slider:before {
+        transform: translateX(16px);
+    }
+    .dia-inativo { opacity: 0.4; }
 </style>
 
 <div class="page-header">
     <h1>⚙️ Configurações da Fila</h1>
-    <p class="subtitle">Personalize as mensagens e perguntas do formulário da fila de atendimento</p>
+    <p class="subtitle">Personalize horários, mensagens e perguntas do formulário da fila de atendimento</p>
 </div>
 
-<!-- Mensagem de chamada -->
+<!-- Horários de atendimento por dia da semana -->
+<div class="card config-card" style="margin-bottom: 20px;">
+    <div class="card-header">
+        <h3>📅 Horários de Atendimento</h3>
+    </div>
+    <p style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">
+        Configure os dias e horários em que o coordenador atende. O bot mostra automaticamente o horário correto para o aluno.
+    </p>
+    <form method="POST" action="{{ url_for('fila_horarios') }}">
+        <table class="horario-table">
+            <thead>
+                <tr>
+                    <th>Dia</th>
+                    <th>Atende?</th>
+                    <th>Início</th>
+                    <th>Fim</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i in range(dias_semana|length) %}
+                {% set dia = dias_semana[i] %}
+                {% set dia_display = dias_semana_display[i] %}
+                {% set config = horarios.get(dia, {}) %}
+                {% set ativo = config.get('ativo', false) %}
+                <tr id="row-{{ dia }}" class="{{ '' if ativo else 'dia-inativo' }}">
+                    <td><span class="dia-label">{{ dia_display }}</span></td>
+                    <td>
+                        <label class="toggle-switch">
+                            <input type="checkbox" name="ativo_{{ dia }}" 
+                                   {{ 'checked' if ativo else '' }}
+                                   onchange="toggleDia('{{ dia }}', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </td>
+                    <td>
+                        <input type="time" name="inicio_{{ dia }}" 
+                               class="horario-input" id="inicio-{{ dia }}"
+                               value="{{ config.get('inicio', '08:00') }}"
+                               {{ '' if ativo else 'disabled' }}>
+                    </td>
+                    <td>
+                        <input type="time" name="fim_{{ dia }}" 
+                               class="horario-input" id="fim-{{ dia }}"
+                               value="{{ config.get('fim', '18:00') }}"
+                               {{ '' if ativo else 'disabled' }}>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div style="margin-top: 12px; text-align: right;">
+            <button class="btn btn-primary">💾 Salvar Horários</button>
+        </div>
+    </form>
+</div>
+
+<!-- Mensagens automáticas -->
 <div class="card config-card" style="margin-bottom: 20px;">
     <div class="card-header">
         <h3>📢 Mensagens Automáticas</h3>
     </div>
+    <p style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">
+        Clique nos botões coloridos abaixo de cada campo para inserir variáveis automaticamente.
+    </p>
 
     <div class="config-section">
         <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
             <div style="flex:1;">
                 <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
-                    📢 Mensagem quando chama o próximo (use <code>{nome}</code>):
+                    📢 Mensagem quando chama o próximo:
                 </label>
-                <textarea name="mensagem_chamada" rows="2"
+                <textarea name="mensagem_chamada" rows="2" id="ta-chamada"
                     style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_chamada }}</textarea>
+                <div class="var-buttons">
+                    <button type="button" class="var-btn" onclick="insertVar('ta-chamada', '{nome}')">📌 {nome}</button>
+                </div>
             </div>
             <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
         </form>
@@ -63,10 +213,16 @@
         <form method="POST" action="{{ url_for('fila_config') }}" style="display:flex; gap:8px; align-items:flex-end;">
             <div style="flex:1;">
                 <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
-                    📥 Mensagem quando aluno entra na fila (use <code>{nome}</code>, <code>{posicao}</code>, <code>{total}</code>, <code>{horario}</code>):
+                    📥 Mensagem quando aluno entra na fila:
                 </label>
-                <textarea name="mensagem_entrada" rows="3"
+                <textarea name="mensagem_entrada" rows="3" id="ta-entrada"
                     style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_entrada }}</textarea>
+                <div class="var-buttons">
+                    <button type="button" class="var-btn" onclick="insertVar('ta-entrada', '{nome}')">👤 {nome}</button>
+                    <button type="button" class="var-btn" onclick="insertVar('ta-entrada', '{posicao}')">📍 {posicao}</button>
+                    <button type="button" class="var-btn" onclick="insertVar('ta-entrada', '{total}')">📊 {total}</button>
+                    <button type="button" class="var-btn" onclick="insertVar('ta-entrada', '{horario}')">🕐 {horario}</button>
+                </div>
             </div>
             <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
         </form>
@@ -78,8 +234,11 @@
                 <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
                     ✅ Mensagem de término de atendimento:
                 </label>
-                <textarea name="mensagem_termino" rows="2"
+                <textarea name="mensagem_termino" rows="2" id="ta-termino"
                     style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_termino }}</textarea>
+                <div class="var-buttons">
+                    <button type="button" class="var-btn" onclick="insertVar('ta-termino', '{nome}')">👤 {nome}</button>
+                </div>
             </div>
             <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
         </form>
@@ -91,8 +250,11 @@
                 <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">
                     ❌ Mensagem ao excluir agendamento:
                 </label>
-                <textarea name="mensagem_cancelamento" rows="2"
+                <textarea name="mensagem_cancelamento" rows="2" id="ta-cancel"
                     style="width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-size:13px; resize:vertical;">{{ mensagem_cancelamento }}</textarea>
+                <div class="var-buttons">
+                    <button type="button" class="var-btn" onclick="insertVar('ta-cancel', '{nome}')">👤 {nome}</button>
+                </div>
             </div>
             <button class="btn btn-primary" style="white-space:nowrap;">💾 Salvar</button>
         </form>
@@ -126,6 +288,38 @@
 </div>
 
 <script>
+// ===== Inserir variável no textarea =====
+function insertVar(textareaId, varText) {
+    const ta = document.getElementById(textareaId);
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const text = ta.value;
+    ta.value = text.substring(0, start) + varText + text.substring(end);
+    // Posiciona cursor após a variável inserida
+    ta.selectionStart = ta.selectionEnd = start + varText.length;
+    ta.focus();
+}
+
+// ===== Toggle dia da semana =====
+function toggleDia(dia, ativo) {
+    const row = document.getElementById('row-' + dia);
+    const inicio = document.getElementById('inicio-' + dia);
+    const fim = document.getElementById('fim-' + dia);
+    if (ativo) {
+        row.classList.remove('dia-inativo');
+        inicio.disabled = false;
+        fim.disabled = false;
+        if (!inicio.value) inicio.value = '08:00';
+        if (!fim.value) fim.value = '18:00';
+    } else {
+        row.classList.add('dia-inativo');
+        inicio.disabled = true;
+        fim.disabled = true;
+    }
+}
+
+// ===== Perguntas =====
 function addPergunta() {
     const container = document.getElementById('perguntas-container');
     const row = document.createElement('div');

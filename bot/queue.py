@@ -6,8 +6,64 @@ from models.database import db, QueueEntry, BotConfig
 from bot import waha, session as sess
 
 
-# Horário de atendimento (pode ser configurado via dashboard no futuro)
-HORARIO_ATENDIMENTO = "Segunda a Sexta, 8h as 18h"
+# Dias da semana em português (indexados por weekday: 0=segunda)
+DIAS_SEMANA = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo']
+DIAS_SEMANA_DISPLAY = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
+
+# Horário padrão (usado se não houver configuração salva)
+HORARIOS_PADRAO = {
+    'segunda': {'ativo': True, 'inicio': '08:00', 'fim': '18:00'},
+    'terca':   {'ativo': True, 'inicio': '08:00', 'fim': '18:00'},
+    'quarta':  {'ativo': True, 'inicio': '08:00', 'fim': '18:00'},
+    'quinta':  {'ativo': True, 'inicio': '08:00', 'fim': '18:00'},
+    'sexta':   {'ativo': True, 'inicio': '08:00', 'fim': '18:00'},
+    'sabado':  {'ativo': False, 'inicio': '', 'fim': ''},
+    'domingo': {'ativo': False, 'inicio': '', 'fim': ''},
+}
+
+
+def get_horarios_semana():
+    """Retorna dict com horários de cada dia da semana."""
+    db.session.expire_all()
+    raw = BotConfig.get('horarios_semana', '')
+    if raw:
+        try:
+            h = json.loads(raw)
+            if isinstance(h, dict):
+                return h
+        except Exception:
+            pass
+    return HORARIOS_PADRAO.copy()
+
+
+def set_horarios_semana(horarios: dict):
+    """Salva horários da semana no banco."""
+    BotConfig.set('horarios_semana', json.dumps(horarios, ensure_ascii=False))
+
+
+def _get_horario_atendimento():
+    """Retorna string de horário baseado no dia atual da semana."""
+    horarios = get_horarios_semana()
+    hoje_idx = datetime.now().weekday()  # 0=segunda, 6=domingo
+    dia_key = DIAS_SEMANA[hoje_idx]
+    dia_display = DIAS_SEMANA_DISPLAY[hoje_idx]
+
+    config_hoje = horarios.get(dia_key, {})
+    if config_hoje.get('ativo') and config_hoje.get('inicio') and config_hoje.get('fim'):
+        return f'{dia_display}: {config_hoje["inicio"]} às {config_hoje["fim"]}'
+
+    # Não atende hoje — encontrar próximo dia com atendimento
+    for offset in range(1, 8):
+        prox_idx = (hoje_idx + offset) % 7
+        prox_key = DIAS_SEMANA[prox_idx]
+        prox_display = DIAS_SEMANA_DISPLAY[prox_idx]
+        prox_config = horarios.get(prox_key, {})
+        if prox_config.get('ativo') and prox_config.get('inicio'):
+            return (f'Sem atendimento hoje ({dia_display}). '
+                    f'Proximo: {prox_display}, {prox_config["inicio"]} às {prox_config["fim"]}')
+
+    return 'Horario de atendimento nao configurado'
+
 
 # Mensagem padrão quando chama o próximo (editável na dashboard)
 MENSAGEM_CHAMADA_PADRAO = (
@@ -26,6 +82,7 @@ PERGUNTAS_PADRAO = [
 
 def _get_mensagem_chamada():
     """Retorna a mensagem de chamada customizada."""
+    db.session.expire_all()
     return BotConfig.get('mensagem_chamada', MENSAGEM_CHAMADA_PADRAO)
 
 
@@ -46,11 +103,13 @@ MENSAGEM_TERMINO_PADRAO = (
 
 def _get_mensagem_entrada():
     """Retorna a mensagem de entrada na fila customizada."""
+    db.session.expire_all()
     return BotConfig.get('mensagem_entrada', MENSAGEM_ENTRADA_PADRAO)
 
 
 def _get_mensagem_termino():
     """Retorna a mensagem de término de atendimento customizada."""
+    db.session.expire_all()
     return BotConfig.get('mensagem_termino', MENSAGEM_TERMINO_PADRAO)
 
 
@@ -62,6 +121,7 @@ MENSAGEM_CANCELAMENTO_PADRAO = (
 
 def _get_mensagem_cancelamento():
     """Retorna a mensagem de cancelamento customizada."""
+    db.session.expire_all()
     return BotConfig.get('mensagem_cancelamento', MENSAGEM_CANCELAMENTO_PADRAO)
 
 
@@ -137,10 +197,11 @@ def enter_queue(chat_id: str, nome: str = None, dados: dict = None):
 
     if existing:
         pos = QueueEntry.posicao_na_fila(chat_id)
+        horario = _get_horario_atendimento()
         waha.send_text(chat_id,
             f'Voce ja esta na fila!\n\n'
             f'*Posicao:* {pos} de {QueueEntry.total_esperando()}\n'
-            f'*Horario de atendimento:* {HORARIO_ATENDIMENTO}\n\n'
+            f'*Horario de atendimento:* {horario}\n\n'
             f'Envie *fila* para consultar sua posicao.')
         return pos
 
@@ -161,14 +222,15 @@ def enter_queue(chat_id: str, nome: str = None, dados: dict = None):
 
     nome_display = nome or 'Aluno'
     msg_template = _get_mensagem_entrada()
+    horario = _get_horario_atendimento()
     try:
         msg = msg_template.format(
             nome=nome_display, posicao=pos, total=total,
-            horario=HORARIO_ATENDIMENTO)
+            horario=horario)
     except Exception:
         msg = msg_template.replace('{nome}', nome_display)\
             .replace('{posicao}', str(pos)).replace('{total}', str(total))\
-            .replace('{horario}', HORARIO_ATENDIMENTO)
+            .replace('{horario}', horario)
     waha.send_text(chat_id, msg)
 
     print(f'[FILA] {chat_id} entrou na fila (posicao {pos})',
@@ -186,9 +248,10 @@ def check_position(chat_id: str):
             'Para entrar, selecione *Falar com o Coordenador* no menu.')
     else:
         total = QueueEntry.total_esperando()
+        horario = _get_horario_atendimento()
         waha.send_text(chat_id,
             f'Sua posicao na fila: *{pos}* de {total}\n\n'
-            f'*Horario de atendimento:* {HORARIO_ATENDIMENTO}\n\n'
+            f'*Horario de atendimento:* {horario}\n\n'
             f'Aguarde, voce sera notificado quando for sua vez!')
 
 
