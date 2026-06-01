@@ -23,10 +23,16 @@ def _read_env_domain():
                     public_url = ''
                     for line in f:
                         line = line.strip()
-                        if line.startswith('FLASK_PUBLIC_DOMAIN='):
-                            domain = line.split('=', 1)[1].strip()
-                        elif line.startswith('FLASK_PUBLIC_URL='):
-                            public_url = line.split('=', 1)[1].strip()
+                        if not line or line.startswith('#'):
+                            continue
+                        if '=' in line:
+                            key, _, val = line.partition('=')
+                            key = key.strip()
+                            val = val.strip().strip('"\'').strip()
+                            if key == 'FLASK_PUBLIC_DOMAIN':
+                                domain = val
+                            elif key == 'FLASK_PUBLIC_URL':
+                                public_url = val
                     return domain, public_url
             except Exception:
                 pass
@@ -36,33 +42,48 @@ def _read_env_domain():
 def _get_base_url():
     """Pega a URL pública para montar links de arquivos enviados aos alunos."""
     # 1. FLASK_PUBLIC_DOMAIN do ambiente
-    domain = os.getenv('FLASK_PUBLIC_DOMAIN', '').strip()
+    domain = os.getenv('FLASK_PUBLIC_DOMAIN', '').strip().strip('"\'').strip()
     if domain:
+        if domain.startswith('http://143.95.210.62') or domain.startswith('143.95.210.62'):
+            return 'https://movidachat.duckdns.org'
         return domain.rstrip('/')
 
     # 2. Lê direto do arquivo .env (fallback para contexto de webhook)
     file_domain, file_url = _read_env_domain()
     if file_domain:
+        if file_domain.startswith('http://143.95.210.62') or file_domain.startswith('143.95.210.62'):
+            return 'https://movidachat.duckdns.org'
         return file_domain.rstrip('/')
 
     # 3. FLASK_PUBLIC_URL do ambiente (se não for URL interna)
-    public_url = os.getenv('FLASK_PUBLIC_URL', '').strip()
+    public_url = os.getenv('FLASK_PUBLIC_URL', '').strip().strip('"\'').strip()
     if public_url and public_url not in ('http://app:5000', 'http://localhost:5000'):
+        if public_url.startswith('http://143.95.210.62') or public_url.startswith('143.95.210.62'):
+            return 'https://movidachat.duckdns.org'
         return public_url.rstrip('/')
 
     # 3b. FLASK_PUBLIC_URL do arquivo .env
     if file_url and file_url not in ('http://app:5000', 'http://localhost:5000'):
+        if file_url.startswith('http://143.95.210.62') or file_url.startswith('143.95.210.62'):
+            return 'https://movidachat.duckdns.org'
         return file_url.rstrip('/')
 
     # 4. Request context (funciona pelo navegador)
     try:
-        host = flask_request.host_url.rstrip('/')
-        if host not in ('http://app:5000', 'http://localhost:5000'):
-            return host
+        # Nginx envia X-Forwarded-Host e X-Forwarded-Proto
+        proto = flask_request.headers.get('X-Forwarded-Proto', 'http')
+        host = flask_request.headers.get('X-Forwarded-Host') or flask_request.host
+        
+        if host and host not in ('app:5000', 'localhost:5000', '127.0.0.1:5000'):
+            # Se for um IP de servidor ou local, força o domínio público
+            if host.startswith('143.95.210.62') or host.split(':')[0].replace('.', '').isdigit():
+                return 'https://movidachat.duckdns.org'
+            return f'{proto}://{host}'.rstrip('/')
     except Exception:
         pass
 
-    return 'http://localhost:5000'
+    # Fallback definitivo para o domínio público oficial do cliente
+    return 'https://movidachat.duckdns.org'
 
 
 
